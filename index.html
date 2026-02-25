@@ -819,88 +819,29 @@ function openWindow(id, originEl) {
   });
 }
 
-function popExplode(rect) {
-  // Ghostly fade: capture the window as an image, draw it on canvas,
-  // then slowly drop opacity with a tiny pixel-noise flicker so it
-  // feels retro rather than just a CSS fade.
-
-  const FRAMES = 110; // ~1.8s at 60fps — slow and soft
-  const NOISE_TILE = 2; // grain pixel size
-
-  // Use html2canvas isn't available — instead just draw a plain gray rect
-  // the same size/position as the window, then fade it out.
-  // This gives a ghost silhouette that melts away.
-
-  let frame = 0;
-
-  // Seed a static noise pattern once so it doesn't shimmer/change each frame
-  // — just a fixed grainy texture baked into the ghost
-  const noiseCanvas = document.createElement('canvas');
-  noiseCanvas.width  = Math.ceil(rect.width  / NOISE_TILE);
-  noiseCanvas.height = Math.ceil(rect.height / NOISE_TILE);
-  const nCtx = noiseCanvas.getContext('2d');
-  for (let y = 0; y < noiseCanvas.height; y++) {
-    for (let x = 0; x < noiseCanvas.width; x++) {
-      const v = 160 + Math.floor(Math.random() * 60); // 160-220 gray range
-      nCtx.fillStyle = `rgb(${v},${v},${v})`;
-      nCtx.fillRect(x, y, 1, 1);
-    }
-  }
-
-  function drawFrame() {
-    if (frame >= FRAMES) {
-      zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
-      return;
-    }
-
-    zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
-
-    const raw = frame / FRAMES;
-    // Ease: slow linear start, gentle curve — no rushing
-    const alpha = Math.pow(1 - raw, 1.6);
-
-    // Draw the noise texture scaled up to the window rect
-    zoomCtx.globalAlpha = alpha;
-    zoomCtx.imageSmoothingEnabled = false; // keep it pixelated
-    zoomCtx.drawImage(
-      noiseCanvas,
-      rect.left, rect.top, rect.width, rect.height
-    );
-
-    // Thin black border so the ghost shape reads clearly at low opacity
-    zoomCtx.globalAlpha = alpha * 0.6;
-    zoomCtx.strokeStyle = '#000000';
-    zoomCtx.lineWidth   = 1;
-    zoomCtx.strokeRect(rect.left, rect.top, rect.width, rect.height);
-
-    zoomCtx.globalAlpha = 1;
-    frame++;
-    requestAnimationFrame(drawFrame);
-  }
-
-  requestAnimationFrame(drawFrame);
-}
-
 function closeWindow(id) {
   const win = document.getElementById('window-' + id);
   if (!win) return;
 
-  // Grab rect BEFORE hiding
-  const rect = win.getBoundingClientRect();
+  // Fade the actual window element so you see the real content dissolve.
+  // Transition duration matches the ghostly feel — slow and soft.
+  win.style.transition = 'opacity 1.7s ease-in';
+  win.style.opacity    = '0';
 
-  // Hide window immediately — the canvas explosion takes over visually
-  win.classList.remove('active', 'closing');
-  win.style.display   = 'none';
-  win.style.left      = '';
-  win.style.top       = '';
-  win.style.transform = '';
-  win.style.zIndex    = '';
+  // After fade completes, clean up
+  setTimeout(() => {
+    win.style.transition = '';
+    win.style.opacity    = '';
+    win.style.display    = 'none';
+    win.style.left       = '';
+    win.style.top        = '';
+    win.style.transform  = '';
+    win.style.zIndex     = '';
+    win.classList.remove('active', 'closing');
+  }, 1750);
 
-  // Fire the canvas pop
-  popExplode(rect);
-
-  // Overlay: hide only if no other windows are open
-  const anyOpen = document.querySelectorAll('.mac-window.active').length > 0;
+  const anyOpen = Array.from(document.querySelectorAll('.mac-window.active'))
+    .some(w => w.id !== 'window-' + id);
   if (!anyOpen) overlay.classList.remove('active');
 }
 
