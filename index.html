@@ -327,7 +327,6 @@
     white-space: nowrap;
   }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -820,31 +819,54 @@ function openWindow(id, originEl) {
   });
 }
 
-function dissolveWindow(snapshotCanvas, rect) {
-  // Read every pixel from the snapshot and build a tile array with real colors.
-  const TILE     = 3;      // px — small enough to look like real pixel breakup
-  const DURATION = 1700;   // ms
+function closeWindow(id) {
+  const win = document.getElementById('window-' + id);
+  if (!win) return;
 
-  const sCtx = snapshotCanvas.getContext('2d');
-  const cols  = Math.ceil(rect.width  / TILE);
-  const rows  = Math.ceil(rect.height / TILE);
+  // ── APPROACH: overlay a canvas directly ON the window element.
+  // The canvas uses mix-blend-mode: destination-out so drawing black
+  // onto it punches transparent holes through the window beneath.
+  // Random tiles drop out independently — the actual window graphics
+  // (title bar, text, images) visibly disintegrate.
 
+  const TILE     = 4;     // px per dissolve pixel
+  const DURATION = 1700;  // ms
+
+  const w = win.offsetWidth;
+  const h = win.offsetHeight;
+
+  // Create dissolve canvas sized to cover the window exactly
+  const dc = document.createElement('canvas');
+  dc.width  = w;
+  dc.height = h;
+  dc.style.cssText = `
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    mix-blend-mode: destination-out;
+    z-index: 9999;
+  `;
+
+  // Window needs isolation so destination-out affects only it
+  win.style.isolation = 'isolate';
+  win.style.overflow  = 'hidden';
+  win.appendChild(dc);
+
+  const dCtx = dc.getContext('2d');
+  const cols  = Math.ceil(w / TILE);
+  const rows  = Math.ceil(h / TILE);
+
+  // Each tile: random death time across the duration
   const tiles = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      // Sample the center pixel of this tile from the snapshot
-      const px = Math.min(Math.floor(c * TILE + TILE / 2), snapshotCanvas.width  - 1);
-      const py = Math.min(Math.floor(r * TILE + TILE / 2), snapshotCanvas.height - 1);
-      const d  = sCtx.getImageData(px, py, 1, 1).data;
-      const color = `rgb(${d[0]},${d[1]},${d[2]})`;
-
       tiles.push({
-        sx: rect.left + c * TILE,
-        sy: rect.top  + r * TILE,
-        color,
-        // Pure random death time — every pixel on its own schedule
-        deathT: Math.random(),
-        alpha:  1,
+        x:      c * TILE,
+        y:      r * TILE,
+        deathT: Math.random(),   // 0..1 — when it starts erasing
+        alpha:  0,               // how opaque the erasure is (0=visible, 1=erased)
       });
     }
   }
@@ -854,68 +876,48 @@ function dissolveWindow(snapshotCanvas, rect) {
   function drawFrame(now) {
     const elapsed  = now - start;
     const progress = Math.min(elapsed / DURATION, 1);
-    // pow < 1 = slow start (pixels trickle), accelerates toward end
-    const ease = Math.pow(progress, 0.7);
+    const ease     = Math.pow(progress, 0.75);
 
-    zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
+    // Clear the dissolve canvas each frame and redraw erasure tiles
+    dCtx.clearRect(0, 0, w, h);
+    dCtx.globalCompositeOperation = 'source-over';
 
-    let anyAlive = false;
+    let anyIncomplete = false;
     tiles.forEach(tile => {
-      if (ease >= tile.deathT) {
-        const fadeProgress = (ease - tile.deathT) / 0.09;
-        tile.alpha = Math.max(0, 1 - fadeProgress);
+      if (ease < tile.deathT) {
+        anyIncomplete = true;
+        return; // not dead yet — leave it visible
       }
-      if (tile.alpha <= 0) return;
-      anyAlive = true;
-      zoomCtx.globalAlpha = tile.alpha;
-      zoomCtx.fillStyle   = tile.color;
-      zoomCtx.fillRect(tile.sx, tile.sy, TILE, TILE);
+      // Fade this tile's erasure in over a short window
+      const fadeProgress = (ease - tile.deathT) / 0.1;
+      tile.alpha = Math.min(1, fadeProgress);
+      if (tile.alpha < 1) anyIncomplete = true;
+
+      // Drawing black with destination-out punches a hole
+      dCtx.globalAlpha = tile.alpha;
+      dCtx.fillStyle   = '#000';
+      dCtx.fillRect(tile.x, tile.y, TILE, TILE);
     });
 
-    zoomCtx.globalAlpha = 1;
+    dCtx.globalAlpha = 1;
 
-    if (anyAlive && progress < 1) {
+    if (anyIncomplete || progress < 1) {
       requestAnimationFrame(drawFrame);
     } else {
-      zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
+      // Fully dissolved — clean up
+      win.classList.remove('active', 'closing');
+      win.style.display    = 'none';
+      win.style.isolation  = '';
+      win.style.overflow   = '';
+      win.style.left       = '';
+      win.style.top        = '';
+      win.style.transform  = '';
+      win.style.zIndex     = '';
+      dc.remove();
     }
   }
 
   requestAnimationFrame(drawFrame);
-}
-
-function closeWindow(id) {
-  const win = document.getElementById('window-' + id);
-  if (!win) return;
-
-  const rect = win.getBoundingClientRect();
-
-  // Snapshot the real window pixels with html2canvas, THEN hide it
-  html2canvas(win, {
-    x:              rect.left,
-    y:              rect.top,
-    width:          rect.width,
-    height:         rect.height,
-    useCORS:        true,
-    allowTaint:     true,
-    backgroundColor: null,
-    scale:          1,
-  }).then(snapshot => {
-    // Now hide the real window
-    win.classList.remove('active', 'closing');
-    win.style.display   = 'none';
-    win.style.left      = '';
-    win.style.top       = '';
-    win.style.transform = '';
-    win.style.zIndex    = '';
-
-    // Dissolve the snapshot
-    dissolveWindow(snapshot, rect);
-  }).catch(() => {
-    // Fallback if html2canvas fails — just hide
-    win.classList.remove('active', 'closing');
-    win.style.display = 'none';
-  });
 
   const anyOpen = document.querySelectorAll('.mac-window.active').length > 0;
   if (!anyOpen) overlay.classList.remove('active');
