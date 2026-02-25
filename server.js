@@ -65,18 +65,36 @@ const server = http.createServer((req, res) => {
         let html = fs.readFileSync(indexPath, 'utf8');
         const settings = JSON.parse(body).settings || {};
 
-        // Replace PROJECTS array
+        // Replace PROJECTS array — find it by bracket-counting so it
+        // works whether the array is empty, single-line, or multi-line
         const newArray = JSON.stringify(projects, null, 2);
-        let replaced = html.replace(
-          /const PROJECTS\s*=\s*\[[\s\S]*?\];/,
-          `const PROJECTS = ${newArray};`
-        );
-
-        if (replaced === html) {
+        const marker = html.indexOf('const PROJECTS');
+        if (marker === -1) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: false, error: 'Could not find "const PROJECTS = [...]" in index.html — make sure that line exists.' }));
+          res.end(JSON.stringify({ ok: false, error: 'Could not find "const PROJECTS" in index.html.' }));
           return;
         }
+        // Find the opening bracket
+        const openBracket = html.indexOf('[', marker);
+        if (openBracket === -1) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Could not find opening [ after const PROJECTS.' }));
+          return;
+        }
+        // Walk forward counting brackets to find the matching close
+        let depth = 0, closeBracket = -1;
+        for (let i = openBracket; i < html.length; i++) {
+          if (html[i] === '[') depth++;
+          else if (html[i] === ']') { depth--; if (depth === 0) { closeBracket = i; break; } }
+        }
+        if (closeBracket === -1) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Could not find closing ] for PROJECTS array.' }));
+          return;
+        }
+        // Replace from 'const PROJECTS' up to and including the closing ] and semicolon
+        const endPos = html[closeBracket + 1] === ';' ? closeBracket + 2 : closeBracket + 1;
+        let replaced = html.slice(0, marker) + `const PROJECTS = ${newArray};` + html.slice(endPos);
 
         // Replace background image filename if provided
         if (settings.bg) {
