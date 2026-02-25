@@ -820,12 +820,8 @@ function openWindow(id, originEl) {
 }
 
 function popExplode(rect) {
-  // Single continuous animation — no phase state machine.
-  // Everything is anchored to (ballX, ballY) which moves through all phases.
-  // Cells store offsets RELATIVE to window center so they always follow the ball.
-
-  const cx = rect.left + rect.width  / 2;
-  const cy = rect.top  + rect.height / 2;
+  // Soft dithered fade — window dissolves in place using Bayer ordered dither.
+  // No movement. Edges eat inward slowly, interior fades last.
 
   const BAYER = [
     [ 0, 8, 2,10],
@@ -834,171 +830,78 @@ function popExplode(rect) {
     [15, 7,13, 5]
   ];
   const BAYER_SIZE = 4;
-  const TILE  = 5;   // dither pixel size
-  const GRID  = 5;   // cell grid size
-  const COLORS = ['#c0c0c0','#d0d0d0','#e0e0e0','#b0b0b0','#909090','#ffffff'];
+  const TILE   = 5;   // px per dither cell — lo-fi chunky feel
+  const FRAMES = 70;  // slow fade ~1.15s at 60fps
+  const COLORS = ['#c0c0c0','#d0d0d0','#e8e8e8','#a8a8a8','#888888','#ffffff'];
 
-  // Build cells with offsets FROM window center (not absolute screen coords)
-  const cols = Math.ceil(rect.width  / GRID);
-  const rows = Math.ceil(rect.height / GRID);
+  // Build cell grid covering the window rect
+  const cols = Math.ceil(rect.width  / TILE);
+  const rows = Math.ceil(rect.height / TILE);
+  const cx   = rect.left + rect.width  / 2;
+  const cy   = rect.top  + rect.height / 2;
+
   const cells = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      // offset from center
-      const ox = (c * GRID) - rect.width  / 2;
-      const oy = (r * GRID) - rect.height / 2;
-      const distN = Math.min(1, Math.sqrt(
-        Math.pow(ox / (rect.width  / 2), 2) +
-        Math.pow(oy / (rect.height / 2), 2)
-      ));
+      const sx = rect.left + c * TILE;
+      const sy = rect.top  + r * TILE;
+      // Normalised distance from center (0 = center, 1 = corner)
+      const dx = ((sx + TILE/2) - cx) / (rect.width  / 2);
+      const dy = ((sy + TILE/2) - cy) / (rect.height / 2);
+      const distN = Math.min(1, Math.sqrt(dx*dx + dy*dy));
+      // Bayer threshold for this cell
       const bThresh = BAYER[r % BAYER_SIZE][c % BAYER_SIZE] / 16;
-      cells.push({ ox, oy, distN, bThresh,
-        color: COLORS[Math.floor(Math.random() * COLORS.length)] });
+      cells.push({
+        sx, sy,
+        distN,
+        bThresh,
+        // Each cell dissolves when progress passes its personal threshold.
+        // Blend edge-out bias (distN) with Bayer noise for the dither texture.
+        dissolveAt: distN * 0.4 + bThresh * 0.6,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      });
     }
   }
 
-  // Animation timeline (all in frames at ~60fps)
-  const T_SQUEEZE_END = 18;  // squeeze finishes
-  const T_FALL_END    = 40;  // fall finishes
-  const T_DONE        = 95;  // dither fully gone
-
   let frame = 0;
 
-  // Ball always lives at (ballX, ballY) — window dimensions squeeze into it
-  let ballX  = cx;
-  let ballY  = cy;
-  let ballVY = 0;
-  const GRAVITY = 0.7;
-
-  // Window rect dimensions squeeze toward ball size over squeeze phase
-  const BALL_R = 15; // final ball radius
-
-  function easeIn(t, e=2)  { return Math.pow(Math.min(1,t), e); }
-  function easeOut(t, e=2) { return 1 - Math.pow(1 - Math.min(1,t), e); }
-
   function drawFrame() {
-    zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
-
-    if (frame >= T_DONE) {
+    if (frame >= FRAMES) {
       zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
       return;
     }
 
-    // ── SQUEEZE phase (0 → T_SQUEEZE_END) ──
-    // Window shape squishes down to a ball, all anchored to (ballX, ballY)
-    if (frame <= T_SQUEEZE_END) {
-      const t  = frame / T_SQUEEZE_END;
-      const te = easeIn(t, 3);
+    zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
 
-      const w = rect.width  * (1 - te) + BALL_R * 2 * te;
-      const h = rect.height * (1 - te) + BALL_R * 2 * te;
-      // ballY stays at cy during squeeze — no movement yet
-      const grayVal = Math.round(192 + te * 63);
-      const radius  = BALL_R * te;
+    // progress: ease-out so it starts fast then lingers at the end
+    const raw = frame / FRAMES;
+    const progress = 1 - Math.pow(1 - raw, 1.8);
 
-      zoomCtx.globalAlpha = 1;
-      zoomCtx.fillStyle   = `rgb(${grayVal},${grayVal},${grayVal})`;
-      zoomCtx.beginPath();
-      zoomCtx.roundRect(
-        Math.round(ballX - w/2), Math.round(ballY - h/2),
-        Math.round(w), Math.round(h), radius
-      );
-      zoomCtx.fill();
-      zoomCtx.strokeStyle = '#000';
-      zoomCtx.lineWidth = 2;
-      zoomCtx.stroke();
+    cells.forEach(cell => {
+      if (progress >= cell.dissolveAt) return; // this cell is gone
 
-      // Dither edge eating inward as squeeze progresses
-      if (te > 0.25) {
-        const da = (te - 0.25) / 0.75;
-        zoomCtx.globalAlpha = da * 0.8;
-        for (let px = Math.round(ballX - w/2); px < Math.round(ballX + w/2); px += TILE) {
-          for (let py = Math.round(ballY - h/2); py < Math.round(ballY + h/2); py += TILE) {
-            const bx = Math.floor((px - Math.round(ballX - w/2)) / TILE) % BAYER_SIZE;
-            const by = Math.floor((py - Math.round(ballY - h/2)) / TILE) % BAYER_SIZE;
-            const thresh = BAYER[by][bx] / 16;
-            const insetX = Math.min(px - Math.round(ballX-w/2), Math.round(ballX+w/2) - px) / w;
-            const insetY = Math.min(py - Math.round(ballY-h/2), Math.round(ballY+h/2) - py) / h;
-            const edgeness = 1 - Math.min(insetX, insetY) * 6;
-            if (edgeness > 0 && thresh < edgeness * da) {
-              zoomCtx.fillStyle = '#111';
-              zoomCtx.fillRect(px, py, TILE, TILE);
-            }
-          }
-        }
-        zoomCtx.globalAlpha = 1;
-      }
-    }
+      // How close is this cell to dissolving?
+      const margin = cell.dissolveAt - progress;
 
-    // ── FALL phase (T_SQUEEZE_END → T_FALL_END) ──
-    // Ball falls under gravity, dither cells follow because they use ballX/ballY
-    else if (frame <= T_FALL_END) {
-      ballVY += GRAVITY;
-      ballY  += ballVY;
-
-      const stretch = 1 + Math.abs(ballVY) * 0.02;
-      const bw = BALL_R * 2 / stretch;
-      const bh = BALL_R * 2 * stretch;
-
-      zoomCtx.globalAlpha = 1;
-      zoomCtx.fillStyle   = '#e8e8e8';
-      zoomCtx.beginPath();
-      zoomCtx.ellipse(Math.round(ballX), Math.round(ballY), Math.round(bw/2), Math.round(bh/2), 0, 0, Math.PI*2);
-      zoomCtx.fill();
-      zoomCtx.strokeStyle = '#000';
-      zoomCtx.lineWidth   = 2;
-      zoomCtx.stroke();
-      zoomCtx.globalAlpha = 1;
-    }
-
-    // ── DITHER DISSOLVE phase (T_FALL_END → T_DONE) ──
-    // Cells draw at (ballX + cell.ox, ballY + cell.oy) — always follow ball
-    else {
-      ballVY += GRAVITY * 0.4;
-      ballY  += ballVY;
-
-      const t  = (frame - T_FALL_END) / (T_DONE - T_FALL_END);
-      const te = easeOut(t, 1.5);
-
-      // Draw cells — their position is ballX/ballY + their stored offset
-      cells.forEach(cell => {
-        const dissolveAt = cell.distN * 0.55 + cell.bThresh * 0.45;
-        if (te > dissolveAt) return;
-
-        const proximity = dissolveAt - te;
-        let alpha;
-        if (proximity < 0.1) {
-          // Dither fringe — crispy dissolve edge
-          alpha = (cell.bThresh < proximity / 0.1) ? 0 : 0.85;
-        } else {
-          alpha = Math.max(0, 1 - te * 0.5);
-        }
-        if (alpha <= 0) return;
-
-        // Screen position = ball center + cell offset
-        // Snap to TILE grid for chunky pixel look
-        const sx = Math.round((ballX + cell.ox) / TILE) * TILE;
-        const sy = Math.round((ballY + cell.oy) / TILE) * TILE;
-
-        zoomCtx.globalAlpha = alpha;
-        zoomCtx.fillStyle   = cell.color;
-        zoomCtx.fillRect(sx, sy, GRID, GRID);
-      });
-
-      // Ball ghost fades out quickly
-      const ballAlpha = Math.max(0, 1 - te * 3);
-      if (ballAlpha > 0) {
-        zoomCtx.globalAlpha = ballAlpha;
-        zoomCtx.fillStyle   = '#d0d0d0';
-        zoomCtx.beginPath();
-        zoomCtx.ellipse(Math.round(ballX), Math.round(ballY), BALL_R, BALL_R, 0, 0, Math.PI*2);
-        zoomCtx.fill();
-        zoomCtx.globalAlpha = 1;
+      let alpha;
+      if (margin < 0.12) {
+        // Fringe zone — Bayer dither decides if this cell draws or not
+        // giving a crispy pixelated dissolve edge
+        const fringeT = margin / 0.12; // 1 = solid, 0 = about to vanish
+        alpha = cell.bThresh < fringeT ? 0.9 : 0;
+      } else {
+        // Interior — solid but gently dimming
+        alpha = Math.max(0, 1 - progress * 0.3);
       }
 
-      zoomCtx.globalAlpha = 1;
-    }
+      if (alpha <= 0) return;
 
+      zoomCtx.globalAlpha = alpha;
+      zoomCtx.fillStyle   = cell.color;
+      zoomCtx.fillRect(cell.sx, cell.sy, TILE, TILE);
+    });
+
+    zoomCtx.globalAlpha = 1;
     frame++;
     requestAnimationFrame(drawFrame);
   }
