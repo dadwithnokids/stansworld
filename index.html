@@ -820,50 +820,32 @@ function openWindow(id, originEl) {
 }
 
 function popExplode(rect) {
-  // Soft dithered fade — window dissolves in place using Bayer ordered dither.
-  // No movement. Edges eat inward slowly, interior fades last.
+  // Ghostly fade: capture the window as an image, draw it on canvas,
+  // then slowly drop opacity with a tiny pixel-noise flicker so it
+  // feels retro rather than just a CSS fade.
 
-  const BAYER = [
-    [ 0, 8, 2,10],
-    [12, 4,14, 6],
-    [ 3,11, 1, 9],
-    [15, 7,13, 5]
-  ];
-  const BAYER_SIZE = 4;
-  const TILE   = 2;   // smaller dither cells — fine grain pixelated texture
-  const FRAMES = 160; // slow fade ~2.7s at 60fps
-  const COLORS = ['#c0c0c0','#d0d0d0','#e8e8e8','#a8a8a8','#888888','#ffffff'];
+  const FRAMES = 110; // ~1.8s at 60fps — slow and soft
+  const NOISE_TILE = 2; // grain pixel size
 
-  // Build cell grid covering the window rect
-  const cols = Math.ceil(rect.width  / TILE);
-  const rows = Math.ceil(rect.height / TILE);
-  const cx   = rect.left + rect.width  / 2;
-  const cy   = rect.top  + rect.height / 2;
-
-  const cells = [];
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const sx = rect.left + c * TILE;
-      const sy = rect.top  + r * TILE;
-      // Normalised distance from center (0 = center, 1 = corner)
-      const dx = ((sx + TILE/2) - cx) / (rect.width  / 2);
-      const dy = ((sy + TILE/2) - cy) / (rect.height / 2);
-      const distN = Math.min(1, Math.sqrt(dx*dx + dy*dy));
-      // Bayer threshold for this cell
-      const bThresh = BAYER[r % BAYER_SIZE][c % BAYER_SIZE] / 16;
-      cells.push({
-        sx, sy,
-        distN,
-        bThresh,
-        // Each cell dissolves when progress passes its personal threshold.
-        // Blend edge-out bias (distN) with Bayer noise for the dither texture.
-        dissolveAt: distN * 0.4 + bThresh * 0.6,
-        color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      });
-    }
-  }
+  // Use html2canvas isn't available — instead just draw a plain gray rect
+  // the same size/position as the window, then fade it out.
+  // This gives a ghost silhouette that melts away.
 
   let frame = 0;
+
+  // Seed a static noise pattern once so it doesn't shimmer/change each frame
+  // — just a fixed grainy texture baked into the ghost
+  const noiseCanvas = document.createElement('canvas');
+  noiseCanvas.width  = Math.ceil(rect.width  / NOISE_TILE);
+  noiseCanvas.height = Math.ceil(rect.height / NOISE_TILE);
+  const nCtx = noiseCanvas.getContext('2d');
+  for (let y = 0; y < noiseCanvas.height; y++) {
+    for (let x = 0; x < noiseCanvas.width; x++) {
+      const v = 160 + Math.floor(Math.random() * 60); // 160-220 gray range
+      nCtx.fillStyle = `rgb(${v},${v},${v})`;
+      nCtx.fillRect(x, y, 1, 1);
+    }
+  }
 
   function drawFrame() {
     if (frame >= FRAMES) {
@@ -873,33 +855,23 @@ function popExplode(rect) {
 
     zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
 
-    // progress: ease-out so it starts fast then lingers at the end
     const raw = frame / FRAMES;
-    const progress = 1 - Math.pow(1 - raw, 1.2); // almost linear, very slow burn
+    // Ease: slow linear start, gentle curve — no rushing
+    const alpha = Math.pow(1 - raw, 1.6);
 
-    cells.forEach(cell => {
-      if (progress >= cell.dissolveAt) return; // this cell is gone
+    // Draw the noise texture scaled up to the window rect
+    zoomCtx.globalAlpha = alpha;
+    zoomCtx.imageSmoothingEnabled = false; // keep it pixelated
+    zoomCtx.drawImage(
+      noiseCanvas,
+      rect.left, rect.top, rect.width, rect.height
+    );
 
-      // How close is this cell to dissolving?
-      const margin = cell.dissolveAt - progress;
-
-      let alpha;
-      if (margin < 0.22) {
-        // Fringe zone — Bayer dither decides if this cell draws or not
-        // giving a crispy pixelated dissolve edge
-        const fringeT = margin / 0.22; // 1 = solid, 0 = about to vanish
-        alpha = cell.bThresh < fringeT ? 0.9 : 0;
-      } else {
-        // Interior — solid but gently dimming
-        alpha = Math.max(0, 1 - progress * 0.15); // very gentle interior dimming
-      }
-
-      if (alpha <= 0) return;
-
-      zoomCtx.globalAlpha = alpha;
-      zoomCtx.fillStyle   = cell.color;
-      zoomCtx.fillRect(cell.sx, cell.sy, TILE, TILE);
-    });
+    // Thin black border so the ghost shape reads clearly at low opacity
+    zoomCtx.globalAlpha = alpha * 0.6;
+    zoomCtx.strokeStyle = '#000000';
+    zoomCtx.lineWidth   = 1;
+    zoomCtx.strokeRect(rect.left, rect.top, rect.width, rect.height);
 
     zoomCtx.globalAlpha = 1;
     frame++;
