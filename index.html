@@ -242,17 +242,35 @@
     margin-bottom: 8px;
     line-height: 1.5;
   }
+  /* Image layout classes */
   .mac-content img {
-    width: 100%;
+    display: block;
     margin: 8px 0;
     border: 1px solid var(--mac-dark);
+    max-width: 100%;
   }
-  .mac-content .project-img-row {
-    display: flex; gap: 6px; margin: 8px 0;
+  /* layout: full (default) */
+  .mac-content img.img-full   { width: 100%; }
+  /* layout: half */
+  .mac-content img.img-half   { width: 50%; }
+  /* layout: third */
+  .mac-content img.img-third  { width: 33%; }
+  /* layout: right — floats image to right, text wraps left */
+  .mac-content img.img-right  { float: right; width: 45%; margin: 0 0 8px 10px; }
+  /* layout: left — floats image to left, text wraps right */
+  .mac-content img.img-left   { float: left;  width: 45%; margin: 0 10px 8px 0; }
+  /* clearfix after floated images */
+  .mac-content .img-clear     { clear: both; }
+  /* side-by-side row */
+  .mac-content .img-row       { display: flex; gap: 6px; margin: 8px 0; }
+  .mac-content .img-row img   { flex: 1; width: 0; margin: 0; }
+  /* inline link inside description */
+  .mac-content a.desc-link {
+    color: var(--mac-black);
+    text-decoration: underline;
+    cursor: pointer;
   }
-  .mac-content .project-img-row img {
-    width: 50%; margin: 0;
-  }
+  .mac-content a.desc-link:hover { background: var(--mac-black); color: var(--mac-white); }
 
   /* Bottom bar */
   .mac-footer {
@@ -349,88 +367,7 @@
 <!-- SCENE -->
 <div id="scene">
 
-  <!-- ═══════════════════════════════
-       HOTSPOTS — edit these!
-       Each .hotspot needs:
-         data-project="project-id"
-         data-label="Hover label text"
-         style="left: X%; top: Y%; width: W%"
-       ═══════════════════════════════ -->
-
-  <!-- 
-    HOTSPOT POSITIONS — tuned to the actual desk image.
-    Desk surface safe zone: left 5%–90%, top 45%–88%
-    Lit center area: left 30%–75%, top 48%–75%
-  -->
-
-  <!-- HOTSPOT 1: Snacktion Box — left side of desk -->
-  <div class="hotspot" 
-       data-project="snacktion" 
-       data-label="Snacktion Set"
-       style="left: 18%; top: 53%; width: 10%;">
-    <svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg" style="width:100%">
-      <rect x="10" y="10" width="80" height="110" rx="4" fill="#e8c840" stroke="#8a7020" stroke-width="2"/>
-      <rect x="15" y="20" width="70" height="50" fill="#cc3333"/>
-      <text x="50" y="50" text-anchor="middle" font-size="10" fill="white" font-weight="bold">SNACKTION</text>
-      <text x="50" y="62" text-anchor="middle" font-size="7" fill="white">BEEF JERKY</text>
-      <rect x="15" y="80" width="70" height="30" fill="#444" rx="2"/>
-      <text x="50" y="99" text-anchor="middle" font-size="7" fill="#ffcc00">★ LEVEL UP ★</text>
-    </svg>
-  </div>
-
-  <!-- HOTSPOT 2: Boombox — center-right of desk, lying flat -->
-  <div class="hotspot" 
-       data-project="boombox" 
-       data-label="Boombox Jerky Line"
-       style="left: 48%; top: 60%; width: 18%;">
-    <svg viewBox="0 0 140 80" xmlns="http://www.w3.org/2000/svg" style="width:100%">
-      <rect x="5" y="15" width="130" height="55" rx="8" fill="#111" stroke="#444" stroke-width="2"/>
-      <circle cx="30" cy="42" r="18" fill="#222" stroke="#666" stroke-width="2"/>
-      <circle cx="30" cy="42" r="10" fill="#333" stroke="#555"/>
-      <circle cx="30" cy="42" r="3" fill="#888"/>
-      <circle cx="110" cy="42" r="18" fill="#222" stroke="#666" stroke-width="2"/>
-      <circle cx="110" cy="42" r="10" fill="#333" stroke="#555"/>
-      <circle cx="110" cy="42" r="3" fill="#888"/>
-      <rect x="55" y="25" width="30" height="18" rx="2" fill="#333" stroke="#555"/>
-      <rect x="58" y="28" width="24" height="12" fill="#111"/>
-      <rect x="55" y="48" width="6" height="6" rx="1" fill="#cc0000"/>
-      <rect x="64" y="48" width="6" height="6" rx="1" fill="#444"/>
-      <rect x="73" y="48" width="6" height="6" rx="1" fill="#444"/>
-      <rect x="82" y="48" width="6" height="6" rx="1" fill="#444"/>
-    </svg>
-  </div>
-
-  <!-- HOTSPOT 3: Monitor / Entrapnet — back of desk, near window -->
-  <div class="hotspot" 
-       data-project="entrapnet" 
-       data-label="Entrapnet — Win95 Browser Emulator"
-       style="left: 34%; top: 28%; width: 14%;">
-    <svg viewBox="0 0 140 120" xmlns="http://www.w3.org/2000/svg" style="width:100%">
-      <rect x="10" y="5" width="120" height="85" rx="6" fill="#c8c8c0" stroke="#888" stroke-width="2"/>
-      <rect x="18" y="13" width="104" height="65" fill="#001a00"/>
-      <text x="70" y="38" text-anchor="middle" font-size="9" fill="#00cc00" font-family="monospace">C:\&gt;_</text>
-      <text x="70" y="50" text-anchor="middle" font-size="7" fill="#00aa00" font-family="monospace">ENTRAPNT.EXE</text>
-      <text x="70" y="62" text-anchor="middle" font-size="6" fill="#008800" font-family="monospace">Loading...</text>
-      <rect x="50" y="90" width="40" height="8" rx="2" fill="#aaa" stroke="#888"/>
-      <rect x="55" y="98" width="30" height="16" rx="1" fill="#aaa" stroke="#888"/>
-    </svg>
-  </div>
-
-  <!-- HOTSPOT 4: Gentleman's Mist — right side of desk, standing upright -->
-  <div class="hotspot" 
-       data-project="gentlemans-mist" 
-       data-label="Gentleman's Mist"
-       style="left: 74%; top: 46%; width: 5%;">
-    <svg viewBox="0 0 50 110" xmlns="http://www.w3.org/2000/svg" style="width:100%">
-      <rect x="15" y="5" width="20" height="10" rx="3" fill="#888"/>
-      <rect x="18" y="15" width="14" height="5" fill="#777"/>
-      <rect x="8" y="20" width="34" height="80" rx="4" fill="#1a3a5c" stroke="#0a2040" stroke-width="1.5"/>
-      <rect x="12" y="30" width="26" height="50" rx="2" fill="rgba(255,255,255,0.08)"/>
-      <text x="25" y="55" text-anchor="middle" font-size="5" fill="#c8d8e8">GENTLEMAN'S</text>
-      <text x="25" y="63" text-anchor="middle" font-size="4" fill="#c8d8e8">MIST</text>
-      <rect x="10" y="85" width="30" height="8" rx="1" fill="#0a2040" opacity="0.5"/>
-    </svg>
-  </div>
+  <!-- Hotspots added via editor.html / PROJECTS array below -->
 
 </div><!-- /scene -->
 
@@ -439,100 +376,7 @@
 
 <!-- ══ PROJECT WINDOWS ══ -->
 
-<!-- Snacktion Set -->
-<div class="mac-window" id="window-snacktion">
-  <div class="mac-titlebar" data-window="snacktion">
-    <div class="mac-close-btn" data-close="snacktion"></div>
-    <div style="position:relative;flex:1;text-align:center;">
-      <div class="mac-titlebar-stripes"></div>
-      <span class="mac-title">Snacktion Set</span>
-    </div>
-    <div style="width:12px;"></div>
-  </div>
-  <div class="mac-content">
-    <h2>🎮 Snacktion Set</h2>
-    <p>A Nintendo-inspired beef jerky packaging line. Each box in the set is themed around classic gaming — complete with pixel-art aesthetics, level-up messaging, and a collectible feel.</p>
-    <p>The packaging was designed to evoke nostalgia while standing out on the shelf. Each SKU corresponds to a "game genre" with its own color palette and visual language.</p>
-    <div class="project-img-row">
-      <img src="https://placehold.co/260x180/cc3333/ffcc00?text=Snacktion+Front" alt="Snacktion front">
-      <img src="https://placehold.co/260x180/222244/00ff88?text=Snacktion+Back" alt="Snacktion back">
-    </div>
-    <p>Available online and at select retailers. Started as a side experiment — turned into a full product line.</p>
-  </div>
-  <div class="mac-footer">
-    <span style="font-size:10px; color:#666;">Stanley's Desk © 2024</span>
-    <a class="mac-link" href="https://yoursnacksite.com" target="_blank" rel="noopener">↗ View Project</a>
-  </div>
-</div>
-
-<!-- Boombox Jerky -->
-<div class="mac-window" id="window-boombox">
-  <div class="mac-titlebar" data-window="boombox">
-    <div class="mac-close-btn" data-close="boombox"></div>
-    <div style="position:relative;flex:1;text-align:center;">
-      <div class="mac-titlebar-stripes"></div>
-      <span class="mac-title">Boombox Jerky Line</span>
-    </div>
-    <div style="width:12px;"></div>
-  </div>
-  <div class="mac-content">
-    <h2>📻 Boombox Series</h2>
-    <p>The next evolution of the themed jerky line — a boombox-inspired packaging series leaning into 80s hip-hop, street culture, and that heavy chrome aesthetic.</p>
-    <p>Currently in development. Each flavor maps to a different "frequency" — the packaging acts as a collectible piece you'd want displayed, not just eaten.</p>
-    <img src="https://placehold.co/560x220/111111/ff6600?text=Boombox+Series+Concept" alt="Boombox concept">
-    <p>Target launch: 2025. Testing three SKUs initially.</p>
-  </div>
-  <div class="mac-footer">
-    <span style="font-size:10px; color:#666;">Stanley's Desk © 2024</span>
-    <a class="mac-link" href="https://yoursite.com/boombox" target="_blank" rel="noopener">↗ View Project</a>
-  </div>
-</div>
-
-<!-- Entrapnet -->
-<div class="mac-window" id="window-entrapnet">
-  <div class="mac-titlebar" data-window="entrapnet">
-    <div class="mac-close-btn" data-close="entrapnet"></div>
-    <div style="position:relative;flex:1;text-align:center;">
-      <div class="mac-titlebar-stripes"></div>
-      <span class="mac-title">Entrapnet — Win95 Emulator</span>
-    </div>
-    <div style="width:12px;"></div>
-  </div>
-  <div class="mac-content">
-    <h2>💾 Entrapnet Browser Emulator</h2>
-    <p>A fully playable Windows 95 environment that runs in your browser — built using the v86 emulator, configured to auto-boot and launch ENTRAPNT.EXE on load.</p>
-    <p>The project involved overcoming multiple GitHub Pages deployment challenges, custom BIOS configuration, and optimizing load times for the disk image. The result is a dead-accurate DOS/Win95 experience that needs no installation.</p>
-    <img src="https://placehold.co/560x200/001a00/00cc00?text=C%3A%5C%3E+ENTRAPNT.EXE" alt="Entrapnet running">
-    <p>Playable on Archive.org. The concept: resurrect a forgotten piece of digital history and make it accessible to anyone with a browser.</p>
-  </div>
-  <div class="mac-footer">
-    <span style="font-size:10px; color:#666;">Stanley's Desk © 2024</span>
-    <a class="mac-link" href="https://archive.org/details/entrapnet" target="_blank" rel="noopener">↗ Play on Archive.org</a>
-  </div>
-</div>
-
-<!-- Gentleman's Mist -->
-<div class="mac-window" id="window-gentlemans-mist">
-  <div class="mac-titlebar" data-window="gentlemans-mist">
-    <div class="mac-close-btn" data-close="gentlemans-mist"></div>
-    <div style="position:relative;flex:1;text-align:center;">
-      <div class="mac-titlebar-stripes"></div>
-      <span class="mac-title">Gentleman's Mist</span>
-    </div>
-    <div style="width:12px;"></div>
-  </div>
-  <div class="mac-content">
-    <h2>🧴 Gentleman's Mist</h2>
-    <p>A handcrafted men's grooming body spray developed from scratch — formulated with essential oils sourced from India, scaled for both barber shop wholesale and direct online retail.</p>
-    <p>The project involved complete cost structure analysis across two bottle sizes (780 units), fragrance development, and building a pricing model that works at both the barber shop and consumer level.</p>
-    <img src="https://placehold.co/560x180/1a3a5c/c8d8e8?text=Gentleman's+Mist" alt="Gentleman's Mist bottle">
-    <p>Handmade in Louisville, KY. The scent profile leans woody, clean, and understated — something that smells expensive without performing for a room.</p>
-  </div>
-  <div class="mac-footer">
-    <span style="font-size:10px; color:#666;">Stanley's Desk © 2024</span>
-    <a class="mac-link" href="https://yourmistsite.com" target="_blank" rel="noopener">↗ View Project</a>
-  </div>
-</div>
+<!-- Windows are generated dynamically from PROJECTS array below -->
 
 <script>
 // ════════════════════════════════════════
@@ -987,21 +831,7 @@ document.querySelectorAll('.mac-window').forEach(makeDraggable);
   }
 */
 const PROJECTS = [
-  {
-    "id": "item-t1crw",
-    "label": "minidisc-player",
-    "left": "22.5%",
-    "top": "49.7%",
-    "width": "7.7%",
-    "imageSrc": "minidisc-player.png",
-    "title": "Air Chrysalis",
-    "description": "With a strong sense of aesthetics and DIY hacking bravado, Air Chrysalis is both a dream pop duo and culture-jamming visual art project equally imprinted by analog and digital. Sharing an appreciation for retrofuturism and hauntology, as the reference to the mysterious sarcophagus in Haruki Murakami’s 1Q84 suggests, Stanley Chase III (vocals, keys) and Michael Powell (guitar, synth) began channeling their unified vision into a pastiche of misremembered nocturnal pop in the summer of 2019.\n\nDefining their sound through driving, gritty, enveloping low-end synth lines and aerodynamic, hypnogogic guitar buoyed over parallax vocals, Air Chrysalis occupies a stylized space between new wave, shoegaze, trip hop, and incandescent, adventurous, experimental pop music. The duo debuted in April 2020 with the neon-noir cinematic single “Beyond My God.” The song saw success on non-commercial radio, coupled with a video that stitched together vintage CRT monitor visuals and advanced projection mapping. Air Chrysalis released their seven-song eponymous EP in September, recorded and mixed by Anne Gauthier (My Morning Jacket, Dean & Britta), with a trippy rotoscopic animated video for the luminous opener “Helical Scan” following at the end of the year.\n\nAir Chrysalis will release their debut full-length in summer 2021, featuring contributions from White Reaper‘s Nick Wilkerson, SEE TAI, and others. An elaborate live show is ready to deploy once, you know, concerts are a thing again.\n\nFor publicity purposes, let’s say RIYL Black Moth Super Rainbow, Beach House, M83, Oneohtrix Point Never \n\n“Air Chrysalis has crafted a synth-heavy masterpiece this year, recalling Slowdive or Mogwai, as filtered through a pop-friendly sieve of vaporwave and Kraftwerk.” – LEO Weekly, Best Locals Songs of 2020\n\n“These dudes are penetrating my molecular structure” – Clay Lapari, Exxpired Music and respected LA insider (!)\n\n “Is this band the new Joy Division? Was parked and couldn’t leave the car til it finished.” – Some commenters on YouTube\n\nAs heard in regular rotation on WFPK 91.9 and WXOX 97.1! Cool!",
-    "images": [
-      "acpic.jpg"
-    ],
-    "link": "https://airchrysalissound.com/",
-    "linkText": "View Project"
-  }
+  // Add new projects here — they'll be auto-rendered on page load
 ];
 
 function buildProjectFromConfig(project) {
@@ -1028,9 +858,46 @@ function buildProjectFromConfig(project) {
   win.className = 'mac-window';
   win.id = 'window-' + project.id;
 
-  const imgRows = (project.images || []).map(src =>
-    `<img src="${src}" alt="${project.title}">`
-  ).join('');
+  // Build image HTML — each image can have a layout suffix:
+  // "photo.jpg"              → full width (default)
+  // "photo.jpg|half"         → 50% width
+  // "photo.jpg|third"        → 33% width
+  // "photo.jpg|right"        → float right, text wraps
+  // "photo.jpg|left"         → float left, text wraps
+  // "photo.jpg|row:photo2.jpg|row:photo3.jpg" → side-by-side row
+
+  const images = project.images || [];
+  let imgHTML = '';
+  let i = 0;
+  while (i < images.length) {
+    const raw = images[i];
+    const [src, layout = 'full'] = raw.split('|');
+
+    if (layout.startsWith('row')) {
+      // Collect all consecutive row items
+      const rowImgs = [src];
+      while (i + 1 < images.length && images[i+1].split('|')[1] === 'row') {
+        i++;
+        rowImgs.push(images[i].split('|')[0]);
+      }
+      imgHTML += `<div class="img-row">${rowImgs.map(s =>
+        `<img src="${s}" alt="${project.title}">`).join('')}</div>`;
+    } else if (layout === 'right' || layout === 'left') {
+      imgHTML += `<img src="${src}" alt="${project.title}" class="img-${layout}">`;
+    } else if (layout === 'half' || layout === 'third') {
+      imgHTML += `<img src="${src}" alt="${project.title}" class="img-${layout}">`;
+    } else {
+      imgHTML += `<img src="${src}" alt="${project.title}" class="img-full">`;
+    }
+    i++;
+  }
+  // Clear floats after images
+  if (imgHTML) imgHTML += '<div class="img-clear"></div>';
+
+  // Parse description: convert [link text](url) → clickable links
+  const descHTML = (project.description || '')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
+      '<a class="desc-link" href="$2" target="_blank" rel="noopener">$1</a>');
 
   win.innerHTML = `
     <div class="mac-titlebar" data-window="${project.id}">
@@ -1043,8 +910,8 @@ function buildProjectFromConfig(project) {
     </div>
     <div class="mac-content">
       <h2>${project.title}</h2>
-      ${imgRows}
-      <p>${project.description}</p>
+      ${imgHTML}
+      <p>${descHTML}</p>
     </div>
     <div class="mac-footer">
       <span style="font-size:10px;color:#666;">Stanley's Desk © 2024</span>
