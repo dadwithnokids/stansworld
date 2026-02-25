@@ -87,17 +87,28 @@
   .hotspot {
     position: absolute;
     cursor: none;
-    transition: filter 0.2s;
   }
-  .hotspot img {
+  .hotspot svg, .hotspot img {
     display: block;
     image-rendering: pixelated;
     max-width: 100%;
     filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.6));
-    transition: filter 0.2s;
+    transition: filter 0.15s;
+    transform-origin: bottom center;
   }
-  .hotspot:hover img {
-    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.6)) brightness(1.1);
+  /* On hover: quick nudge right then settle */
+  .hotspot.hovered svg,
+  .hotspot.hovered img {
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.6)) brightness(1.15);
+    animation: hotspot-nudge 0.35s steps(1, end) forwards;
+  }
+  @keyframes hotspot-nudge {
+    0%   { transform: translateX(0px); }
+    20%  { transform: translateX(4px); }
+    40%  { transform: translateX(6px); }
+    60%  { transform: translateX(4px); }
+    80%  { transform: translateX(2px); }
+    100% { transform: translateX(3px); }
   }
 
   /* ── SPARKLE CANVAS ── */
@@ -125,8 +136,39 @@
     z-index: 1000;
     font-family: 'Geneva', 'Charcoal', 'Chicago', 'Courier New', monospace;
     font-size: 12px;
+    image-rendering: pixelated;
   }
-  .mac-window.active { display: block; }
+  .mac-window.active {
+    display: block;
+    animation: win-pixel-reveal 0.32s steps(1, end) forwards;
+  }
+  .mac-window.closing {
+    display: block;
+    animation: win-pixel-close 0.18s steps(1, end) forwards;
+  }
+
+  /* Pixelated open: expand from tiny in stepped jumps */
+  @keyframes win-pixel-reveal {
+    0%   { clip-path: inset(48% 48%); opacity: 0; }
+    10%  { clip-path: inset(44% 44%); opacity: 1; filter: brightness(2) saturate(0); }
+    20%  { clip-path: inset(38% 38%); filter: brightness(1.8) saturate(0); }
+    30%  { clip-path: inset(30% 30%); filter: brightness(1.4) saturate(0.2); }
+    42%  { clip-path: inset(20% 20%); filter: brightness(1.2) saturate(0.5); }
+    55%  { clip-path: inset(10% 10%); filter: brightness(1.05) saturate(0.8); }
+    68%  { clip-path: inset(4% 4%);   filter: brightness(1); }
+    80%  { clip-path: inset(1% 1%);   filter: brightness(1.05); }
+    90%  { clip-path: inset(0% 0%);   filter: brightness(0.95); }
+    100% { clip-path: inset(0% 0%);   filter: brightness(1); }
+  }
+
+  /* Pixelated close: collapse inward */
+  @keyframes win-pixel-close {
+    0%   { clip-path: inset(0% 0%);   opacity: 1; }
+    30%  { clip-path: inset(10% 15%); opacity: 1; filter: brightness(1.3); }
+    60%  { clip-path: inset(30% 35%); opacity: 1; filter: brightness(1.8) saturate(0); }
+    90%  { clip-path: inset(47% 47%); opacity: 0.5; }
+    100% { clip-path: inset(50% 50%); opacity: 0; display: none; }
+  }
 
   /* Title bar */
   .mac-titlebar {
@@ -524,13 +566,12 @@ document.addEventListener('mousemove', e => {
 });
 
 // ════════════════════════════════════════
-// SPARKLE SYSTEM
+// SPARKLE SYSTEM — single burst on hover-enter
+// Grows from 1 small diamond → 3-4 pixel diamonds, quick
 // ════════════════════════════════════════
 const canvas = document.getElementById('sparkle-canvas');
 const ctx = canvas.getContext('2d');
 let sparkles = [];
-let activeHotspot = null;
-let sparkleInterval = null;
 
 function resizeCanvas() {
   canvas.width = window.innerWidth;
@@ -539,60 +580,81 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-class Sparkle {
-  constructor(x, y) {
-    this.x = x + (Math.random() - 0.5) * 60;
-    this.y = y + (Math.random() - 0.5) * 60;
-    this.size = Math.floor(Math.random() * 3 + 2); // pixelated sizes: 2,3,4
-    this.life = 1;
-    this.decay = 0.04 + Math.random() * 0.04;
-    this.vx = (Math.random() - 0.5) * 1.5;
-    this.vy = -Math.random() * 2 - 0.5;
-    // 8-bit star colors
-    const colors = ['#ffffff', '#ffff00', '#ffcc00', '#ff99ff', '#99ffff', '#ff6666', '#aaffaa'];
+// Each sparkle is one pixel-diamond sprite that grows then fades
+class PixelDiamond {
+  constructor(x, y, delay) {
+    this.x = x;
+    this.y = y;
+    this.delay = delay;         // stagger start
+    this.age = -delay;          // negative = waiting
+    this.duration = 28;         // frames to live
+    // Scatter slightly around center
+    this.ox = (Math.random() - 0.5) * 28;
+    this.oy = (Math.random() - 0.5) * 24;
+    // Drift upward slightly
+    this.vy = -0.4 - Math.random() * 0.4;
+    const colors = ['#ffffff', '#ffe87c', '#ffd700', '#fff0a0', '#c8f0ff', '#ffccff'];
     this.color = colors[Math.floor(Math.random() * colors.length)];
-    this.shape = Math.random() > 0.5 ? 'star' : 'pixel';
+    // Each diamond has a slightly different max size (2–5px pixel grid)
+    this.maxSize = Math.floor(Math.random() * 2 + 2); // 2, 3, or 4
   }
 
-  update() {
-    this.x += this.vx;
-    this.y += this.vy;
-    this.life -= this.decay;
-  }
+  done() { return this.age > this.duration; }
 
-  draw() {
-    ctx.globalAlpha = this.life;
+  draw(ctx) {
+    this.age++;
+    if (this.age <= 0) return; // still waiting
+
+    const t = this.age / this.duration; // 0 → 1
+    // grow fast (ease-out), then shrink at the end
+    const scale = t < 0.45
+      ? t / 0.45                        // grow 0→1 in first 45%
+      : 1 - ((t - 0.45) / 0.55);       // shrink 1→0 in last 55%
+
+    const s = Math.max(1, Math.round(this.maxSize * scale));
+    const alpha = Math.min(1, scale * 1.4);
+
+    // drift
+    this.oy += this.vy;
+
+    const px = Math.round(this.x + this.ox);
+    const py = Math.round(this.y + this.oy);
+
+    ctx.globalAlpha = alpha;
     ctx.fillStyle = this.color;
-    if (this.shape === 'pixel') {
-      // Pixelated square
-      ctx.fillRect(
-        Math.round(this.x), 
-        Math.round(this.y), 
-        this.size, this.size
-      );
-    } else {
-      // 4-point pixel star
-      const s = this.size;
-      ctx.fillRect(Math.round(this.x), Math.round(this.y - s), s, s * 3); // vertical
-      ctx.fillRect(Math.round(this.x - s), Math.round(this.y), s * 3, s); // horizontal
+
+    // Draw pixel diamond: cross shape
+    // center pixel
+    ctx.fillRect(px,         py,         s, s);
+    // arms — length grows with s
+    for (let i = 1; i <= s + 1; i++) {
+      const arm = Math.max(1, s - Math.floor(i * 0.4));
+      ctx.fillRect(px + i * s,  py, arm, arm); // right
+      ctx.fillRect(px - i * s,  py, arm, arm); // left
+      ctx.fillRect(px, py - i * s,  arm, arm); // up
+      ctx.fillRect(px, py + i * s,  arm, arm); // down
     }
+
     ctx.globalAlpha = 1;
   }
 }
 
-function spawnSparklesAt(el) {
+function spawnBurstAt(el) {
   const rect = el.getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
-  const cy = rect.top + rect.height / 2;
-  for (let i = 0; i < 4; i++) {
-    sparkles.push(new Sparkle(cx, cy));
+  const cy = rect.top  + rect.height / 3; // aim toward top of object
+
+  // 3–4 diamonds, staggered start times
+  const count = 3 + Math.floor(Math.random() * 2); // 3 or 4
+  for (let i = 0; i < count; i++) {
+    sparkles.push(new PixelDiamond(cx, cy, i * 4));
   }
 }
 
 function animateSparkles() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  sparkles = sparkles.filter(s => s.life > 0);
-  sparkles.forEach(s => { s.update(); s.draw(); });
+  sparkles.forEach(s => s.draw(ctx));
+  sparkles = sparkles.filter(s => !s.done());
   requestAnimationFrame(animateSparkles);
 }
 animateSparkles();
@@ -601,6 +663,7 @@ animateSparkles();
 // HOTSPOT HOVER & CLICK
 // ════════════════════════════════════════
 const hoverLabel = document.getElementById('hover-label');
+let activeHotspot = null;
 
 document.querySelectorAll('.hotspot').forEach(hotspot => {
   hotspot.addEventListener('mouseenter', () => {
@@ -608,10 +671,9 @@ document.querySelectorAll('.hotspot').forEach(hotspot => {
     cursor.classList.add('pointing');
     hoverLabel.style.display = 'block';
     hoverLabel.textContent = hotspot.dataset.label || '';
-    
-    sparkleInterval = setInterval(() => {
-      spawnSparklesAt(hotspot);
-    }, 80);
+    hotspot.classList.add('hovered');
+    // Single burst — fire once on enter
+    spawnBurstAt(hotspot);
   });
 
   hotspot.addEventListener('mousemove', e => {
@@ -623,10 +685,7 @@ document.querySelectorAll('.hotspot').forEach(hotspot => {
     activeHotspot = null;
     cursor.classList.remove('pointing');
     hoverLabel.style.display = 'none';
-    if (sparkleInterval) {
-      clearInterval(sparkleInterval);
-      sparkleInterval = null;
-    }
+    hotspot.classList.remove('hovered');
   });
 
   hotspot.addEventListener('click', () => {
@@ -643,16 +702,23 @@ const overlay = document.getElementById('overlay');
 function openWindow(id) {
   const win = document.getElementById('window-' + id);
   if (!win) return;
-  // Close any open windows first
-  document.querySelectorAll('.mac-window.active').forEach(w => w.classList.remove('active'));
+  // Close any open windows instantly first
+  document.querySelectorAll('.mac-window.active').forEach(w => {
+    w.classList.remove('active');
+  });
+  win.classList.remove('closing');
   win.classList.add('active');
   overlay.classList.add('active');
 }
 
 function closeWindow(id) {
   const win = document.getElementById('window-' + id);
-  if (win) win.classList.remove('active');
+  if (!win) return;
+  win.classList.remove('active');
+  win.classList.add('closing');
   overlay.classList.remove('active');
+  // Remove closing class after animation completes
+  setTimeout(() => win.classList.remove('closing'), 200);
 }
 
 // Close buttons
@@ -783,7 +849,8 @@ function buildProjectFromConfig(project) {
     cursor.classList.add('pointing');
     hoverLabel.style.display = 'block';
     hoverLabel.textContent = hotspot.dataset.label;
-    sparkleInterval = setInterval(() => spawnSparklesAt(hotspot), 80);
+    hotspot.classList.add('hovered');
+    spawnBurstAt(hotspot);
   });
   hotspot.addEventListener('mousemove', e => {
     hoverLabel.style.left = (e.clientX + 20) + 'px';
@@ -793,7 +860,7 @@ function buildProjectFromConfig(project) {
     activeHotspot = null;
     cursor.classList.remove('pointing');
     hoverLabel.style.display = 'none';
-    clearInterval(sparkleInterval);
+    hotspot.classList.remove('hovered');
   });
   hotspot.addEventListener('click', () => openWindow(project.id));
 
