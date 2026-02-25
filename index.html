@@ -988,47 +988,53 @@ function popExplode(rect) {
       // te goes 0→1 over dither phase — slow ease so it lingers
       const te = easeOut(t, 1.6);
 
-      // Ball continues falling faintly behind the dither
+      // Ball keeps falling — dither grid follows it exactly
       ballVY += GRAVITY * 0.5;
       ballY  += ballVY;
-      const ballAlpha = Math.max(0, 1 - te * 2.5);
-      if (ballAlpha > 0) {
-        zoomCtx.globalAlpha = ballAlpha;
-        zoomCtx.fillStyle = '#d0d0d0';
-        zoomCtx.beginPath();
-        zoomCtx.ellipse(Math.round(ballX), Math.round(ballY), ballW/2, ballH/2, 0, 0, Math.PI*2);
-        zoomCtx.fill();
-        zoomCtx.globalAlpha = 1;
-      }
 
-      // Draw dithered window ghost — cells with bThresh < current fade are gone
+      // How far the ball has dropped from its starting center position
+      // Every cell offsets by this so the whole dither shape travels with the ball
+      const dropY = ballY - cy;
+
+      // Draw dithered window ghost — offset by dropY each frame
       cells.forEach(cell => {
-        // Dissolve outward: cells near edge (high distN) disappear first
-        // bThresh adds the ordered-dither texture
+        // Dissolve from edges inward using distN + Bayer threshold
         const dissolveAt = cell.distN * 0.5 + cell.bThresh * 0.5;
-        if (te > dissolveAt) return; // this cell has dissolved
+        if (te > dissolveAt) return;
 
-        // Cells near the dissolve frontier flicker (dither edge)
         const proximity = Math.abs(te - dissolveAt);
         let alpha;
         if (proximity < 0.08) {
-          // Dither fringe: use Bayer to decide solid vs transparent
+          // Dither fringe: crispy dissolve edge
           alpha = cell.bThresh < (1 - proximity / 0.08) ? 0.9 : 0;
         } else {
-          // Solid interior: fade very gently
           alpha = Math.max(0, 1 - te * 0.4);
         }
 
         if (alpha <= 0) return;
         zoomCtx.globalAlpha = alpha;
         zoomCtx.fillStyle = cell.color;
-        // Snap to even pixel grid — keeps it crunchy
+        // cell.px/py are original positions — add dropY to follow the ball
         zoomCtx.fillRect(
           Math.round(cell.px / TILE) * TILE,
-          Math.round(cell.py / TILE) * TILE,
+          Math.round((cell.py + dropY) / TILE) * TILE,
           GRID, GRID
         );
       });
+
+      // Ball drawn on top, fading out as dither takes over
+      const ballAlpha = Math.max(0, 1 - te * 2.2);
+      if (ballAlpha > 0) {
+        zoomCtx.globalAlpha = ballAlpha;
+        zoomCtx.fillStyle = '#d8d8d8';
+        zoomCtx.beginPath();
+        zoomCtx.ellipse(Math.round(ballX), Math.round(ballY), ballW/2, ballH/2, 0, 0, Math.PI*2);
+        zoomCtx.fill();
+        zoomCtx.strokeStyle = '#000';
+        zoomCtx.lineWidth = 1.5;
+        zoomCtx.stroke();
+        zoomCtx.globalAlpha = 1;
+      }
 
       zoomCtx.globalAlpha = 1;
       frame++;
