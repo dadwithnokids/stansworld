@@ -823,98 +823,89 @@ function closeWindow(id) {
   const win = document.getElementById('window-' + id);
   if (!win) return;
 
-  // ── APPROACH: overlay a canvas directly ON the window element.
-  // The canvas uses mix-blend-mode: destination-out so drawing black
-  // onto it punches transparent holes through the window beneath.
-  // Random tiles drop out independently — the actual window graphics
-  // (title bar, text, images) visibly disintegrate.
-
-  const TILE     = 4;     // px per dissolve pixel
-  const DURATION = 1700;  // ms
-
+  const TILE     = 4;
+  const DURATION = 1100; // faster
   const w = win.offsetWidth;
   const h = win.offsetHeight;
 
-  // Create dissolve canvas sized to cover the window exactly
-  const dc = document.createElement('canvas');
-  dc.width  = w;
-  dc.height = h;
-  dc.style.cssText = `
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    mix-blend-mode: destination-out;
-    z-index: 9999;
-  `;
-
-  // Window needs isolation so destination-out affects only it
-  win.style.isolation = 'isolate';
-  win.style.overflow  = 'hidden';
-  win.appendChild(dc);
-
-  const dCtx = dc.getContext('2d');
+  // Build tile death times up front
   const cols  = Math.ceil(w / TILE);
   const rows  = Math.ceil(h / TILE);
-
-  // Each tile: random death time across the duration
   const tiles = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      tiles.push({
-        x:      c * TILE,
-        y:      r * TILE,
-        deathT: Math.random(),   // 0..1 — when it starts erasing
-        alpha:  0,               // how opaque the erasure is (0=visible, 1=erased)
-      });
+      tiles.push({ x: c * TILE, y: r * TILE, deathT: Math.random() });
     }
   }
+
+  // Overlay canvas — drawn OVER the window using normal compositing.
+  // Instead of destination-out (which needs transparency), we draw
+  // BACKGROUND-COLORED tiles over the window to "erase" regions —
+  // but we don't know the bg color. So instead: we reduce the window's
+  // opacity globally while using clip regions to keep the surviving
+  // tiles looking full-opacity.
+  //
+  // Simplest approach that actually works:
+  // Keep window visible. Each frame, build a clip path from all the
+  // tiles that are still alive — window is only visible through those tiles.
+
+  win.style.isolation = 'isolate';
+
+  // Create a canvas that sits on top of the window, same size,
+  // draws a solid mask. We use it to rebuild the clip region each frame.
+  // Actually: use SVG clipPath on the window itself.
+  // Generate a <clipPath> with rects for surviving tiles, update each frame.
+
+  // Create SVG clip path element
+  const svgNS  = 'http://www.w3.org/2000/svg';
+  const svg    = document.createElementNS(svgNS, 'svg');
+  svg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;';
+  const defs   = document.createElementNS(svgNS, 'defs');
+  const clipEl = document.createElementNS(svgNS, 'clipPath');
+  const clipId = 'dissolve-clip-' + id;
+  clipEl.setAttribute('id', clipId);
+  defs.appendChild(clipEl);
+  svg.appendChild(defs);
+  document.body.appendChild(svg);
+
+  win.style.clipPath = `url(#${clipId})`;
 
   const start = performance.now();
 
   function drawFrame(now) {
     const elapsed  = now - start;
     const progress = Math.min(elapsed / DURATION, 1);
-    const ease     = Math.pow(progress, 0.75);
+    // Ease: slow start then accelerate — pixels trickle then rush
+    const ease = Math.pow(progress, 0.8);
 
-    // Clear the dissolve canvas each frame and redraw erasure tiles
-    dCtx.clearRect(0, 0, w, h);
-    dCtx.globalCompositeOperation = 'source-over';
+    // Rebuild clip path from surviving tiles
+    // Batch into one big path string for performance
+    let pathStr = '';
+    let allDead = true;
 
-    let anyIncomplete = false;
     tiles.forEach(tile => {
       if (ease < tile.deathT) {
-        anyIncomplete = true;
-        return; // not dead yet — leave it visible
+        // Still alive — include in clip
+        pathStr += `M${tile.x},${tile.y}h${TILE}v${TILE}h-${TILE}Z `;
+        allDead = false;
       }
-      // Fade this tile's erasure in over a short window
-      const fadeProgress = (ease - tile.deathT) / 0.1;
-      tile.alpha = Math.min(1, fadeProgress);
-      if (tile.alpha < 1) anyIncomplete = true;
-
-      // Drawing black with destination-out punches a hole
-      dCtx.globalAlpha = tile.alpha;
-      dCtx.fillStyle   = '#000';
-      dCtx.fillRect(tile.x, tile.y, TILE, TILE);
+      // else: dead — not in clip, so window is invisible there
     });
 
-    dCtx.globalAlpha = 1;
-
-    if (anyIncomplete || progress < 1) {
-      requestAnimationFrame(drawFrame);
-    } else {
-      // Fully dissolved — clean up
+    if (allDead || progress >= 1) {
+      // Done — clean up
+      win.style.clipPath  = '';
+      win.style.isolation = '';
       win.classList.remove('active', 'closing');
-      win.style.display    = 'none';
-      win.style.isolation  = '';
-      win.style.overflow   = '';
-      win.style.left       = '';
-      win.style.top        = '';
-      win.style.transform  = '';
-      win.style.zIndex     = '';
-      dc.remove();
+      win.style.display   = 'none';
+      win.style.left = win.style.top = win.style.transform = win.style.zIndex = '';
+      svg.remove();
+      return;
     }
+
+    // Apply the clip path as a single SVG path element
+    clipEl.innerHTML = `<path d="${pathStr}"/>`;
+    requestAnimationFrame(drawFrame);
   }
 
   requestAnimationFrame(drawFrame);
