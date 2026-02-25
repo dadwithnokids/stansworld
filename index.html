@@ -159,21 +159,8 @@
   .mac-window.active {
     display: block;
   }
-  .mac-window.closing {
-    display: block;
-    animation: win-pop-close 0.42s steps(6, end) forwards;
-  }
-
-  /* Pixelated pop: punch out → flash white → collapse in big stepped jumps */
-  @keyframes win-pop-close {
-    0%   { transform: translate(-50%,-50%) scale(1.00); opacity: 1;   filter: brightness(1); }
-    17%  { transform: translate(-50%,-50%) scale(1.10); opacity: 1;   filter: brightness(3) saturate(0); }
-    33%  { transform: translate(-50%,-50%) scale(1.10); opacity: 1;   filter: brightness(5) saturate(0); }
-    50%  { transform: translate(-50%,-50%) scale(0.50); opacity: 1;   filter: brightness(3) saturate(0); }
-    67%  { transform: translate(-50%,-50%) scale(0.50); opacity: 0.7; filter: brightness(4) saturate(0); }
-    83%  { transform: translate(-50%,-50%) scale(0.10); opacity: 0.4; filter: brightness(6) saturate(0); }
-    100% { transform: translate(-50%,-50%) scale(0.00); opacity: 0;   filter: brightness(8) saturate(0); }
-  }
+  /* .closing is only used briefly while canvas pop plays — no CSS anim needed */
+  .mac-window.closing { display: none; }
 
   /* Zoom-rect canvas sits over everything during open animation */
   #zoom-rect-canvas {
@@ -832,40 +819,133 @@ function openWindow(id, originEl) {
   });
 }
 
+function popExplode(rect) {
+  // Draw a canvas-based pixel-pop explosion centered on rect.
+  // Phase 1: window punches out (scale flash drawn on canvas)
+  // Phase 2: pixel chunks scatter outward and fade
+
+  const PIXEL  = 10;   // chunk size in px — big and blocky
+  const COLORS = ['#c0c0c0','#ffffff','#808080','#000000','#e0e0e0','#404040'];
+
+  // Sample a grid of color "chunks" from the window before hiding it
+  const cols = Math.ceil(rect.width  / PIXEL);
+  const rows = Math.ceil(rect.height / PIXEL);
+
+  // Build particle list — one per grid cell
+  const particles = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cx = rect.left + c * PIXEL + PIXEL / 2;
+      const cy = rect.top  + r * PIXEL + PIXEL / 2;
+      // Velocity radiates outward from window center
+      const dx = cx - (rect.left + rect.width  / 2);
+      const dy = cy - (rect.top  + rect.height / 2);
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const speed = 2.5 + Math.random() * 4;
+      particles.push({
+        x:  cx, y: cy,
+        vx: (dx / dist) * speed * (0.6 + Math.random() * 0.8),
+        vy: (dy / dist) * speed * (0.6 + Math.random() * 0.8) - 1.5,
+        size: PIXEL - Math.floor(Math.random() * 3),
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        alpha: 1,
+        // Skip ~60% of particles so it's sparse and readable
+        skip: Math.random() < 0.60,
+      });
+    }
+  }
+
+  // Phase 1: white flash on canvas (2 frames)
+  let flashFrames = 0;
+  const FLASH_TOTAL = 4;
+
+  // Phase 2: particle scatter
+  let scatterStarted = false;
+  const SCATTER_DURATION = 38; // frames
+  let scatterFrame = 0;
+
+  function drawFrame() {
+    zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
+
+    if (flashFrames < FLASH_TOTAL) {
+      // Flash: draw the window rect in white, shrinking slightly each frame
+      const progress = flashFrames / FLASH_TOTAL;
+      const fw = rect.width  * (1 + (1 - progress) * 0.08);
+      const fh = rect.height * (1 + (1 - progress) * 0.08);
+      const fx = rect.left - (fw - rect.width)  / 2;
+      const fy = rect.top  - (fh - rect.height) / 2;
+      const brightness = 1 - progress * 0.5; // 1 → 0.5
+      zoomCtx.globalAlpha = 1 - progress * 0.6;
+      zoomCtx.fillStyle = '#ffffff';
+      zoomCtx.fillRect(Math.round(fx), Math.round(fy), Math.round(fw), Math.round(fh));
+      // Black pixel border
+      zoomCtx.strokeStyle = '#000';
+      zoomCtx.lineWidth = 2;
+      zoomCtx.setLineDash([]);
+      zoomCtx.strokeRect(Math.round(fx), Math.round(fy), Math.round(fw), Math.round(fh));
+      zoomCtx.globalAlpha = 1;
+      flashFrames++;
+      requestAnimationFrame(drawFrame);
+
+    } else {
+      // Scatter phase
+      if (scatterFrame >= SCATTER_DURATION) {
+        zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
+        return; // done
+      }
+
+      const t = scatterFrame / SCATTER_DURATION;
+
+      particles.forEach(p => {
+        if (p.skip) return;
+        // Gravity + drag
+        p.vy += 0.25;
+        p.vx *= 0.96;
+        p.vy *= 0.96;
+        p.x  += p.vx;
+        p.y  += p.vy;
+        // Fade out in second half
+        p.alpha = t < 0.4 ? 1 : 1 - ((t - 0.4) / 0.6);
+
+        zoomCtx.globalAlpha = Math.max(0, p.alpha);
+        zoomCtx.fillStyle   = p.color;
+        // Pixelated: snap to pixel grid
+        zoomCtx.fillRect(
+          Math.round(p.x / 2) * 2,
+          Math.round(p.y / 2) * 2,
+          p.size, p.size
+        );
+      });
+
+      zoomCtx.globalAlpha = 1;
+      scatterFrame++;
+      requestAnimationFrame(drawFrame);
+    }
+  }
+
+  requestAnimationFrame(drawFrame);
+}
+
 function closeWindow(id) {
   const win = document.getElementById('window-' + id);
   if (!win) return;
 
-  // The window is positioned with absolute left/top px (set by openWindow).
-  // The pop keyframes use translate(-50%,-50%) which assumes left:50% top:50%.
-  // So we need to convert: keep the visual center position but switch to
-  // the % + translate system the keyframes expect.
+  // Grab rect BEFORE hiding
   const rect = win.getBoundingClientRect();
-  const cx = rect.left + rect.width  / 2;
-  const cy = rect.top  + rect.height / 2;
 
-  win.style.left      = cx + 'px';
-  win.style.top       = cy + 'px';
-  win.style.transform = 'translate(-50%, -50%)';
-  win.style.opacity   = '1';
-  win.style.transition = '';
+  // Hide window immediately — the canvas explosion takes over visually
+  win.classList.remove('active', 'closing');
+  win.style.display   = 'none';
+  win.style.left      = '';
+  win.style.top       = '';
+  win.style.transform = '';
+  win.style.zIndex    = '';
 
-  win.classList.remove('active');
-  void win.offsetWidth; // force reflow
-  win.classList.add('closing');
+  // Fire the canvas pop
+  popExplode(rect);
 
-  setTimeout(() => {
-    win.classList.remove('closing');
-    win.style.display    = 'none';
-    win.style.left       = '';
-    win.style.top        = '';
-    win.style.transform  = '';
-    win.style.zIndex     = '';
-  }, 500);
-
-  // Hide overlay only if no other windows remain open
-  const anyOpen = Array.from(document.querySelectorAll('.mac-window.active'))
-    .some(w => w.id !== 'window-' + id);
+  // Overlay: hide only if no other windows are open
+  const anyOpen = document.querySelectorAll('.mac-window.active').length > 0;
   if (!anyOpen) overlay.classList.remove('active');
 }
 
