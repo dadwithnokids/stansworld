@@ -871,6 +871,7 @@ function popExplode(rect) {
   let ballX = cx, ballY = cy;
   let ballW = 30, ballH = 30; // starts small after squeeze
   let ballVY = 0;
+  let ballYAtPhase3Start = cy; // set when phase 3 begins
   const GRAVITY = 0.9;
 
   function easeOut(t, exp=2.5) { return 1 - Math.pow(1 - t, exp); }
@@ -970,6 +971,9 @@ function popExplode(rect) {
       if (frame >= FALL_FRAMES) {
         phase = 3;
         frame = 0;
+        // Snapshot where the ball is RIGHT NOW so phase 3 starts
+        // the dither grid at this exact position — no jump
+        ballYAtPhase3Start = ballY;
       }
       requestAnimationFrame(drawFrame);
     }
@@ -992,9 +996,9 @@ function popExplode(rect) {
       ballVY += GRAVITY * 0.5;
       ballY  += ballVY;
 
-      // How far the ball has dropped from its starting center position
-      // Every cell offsets by this so the whole dither shape travels with the ball
-      const dropY = ballY - cy;
+      // dropY is relative to where the ball WAS when phase 3 started
+      // so the dither grid begins at the ball's position and moves with it
+      const dropY = ballY - ballYAtPhase3Start;
 
       // Draw dithered window ghost — offset by dropY each frame
       cells.forEach(cell => {
