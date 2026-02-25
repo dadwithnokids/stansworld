@@ -150,51 +150,27 @@
     image-rendering: pixelated;
     transform-origin: center center; /* overridden by JS at open time */
   }
+  /* Window starts hidden; JS controls visibility during zoom-rect animation */
   .mac-window.active {
     display: block;
-    animation: win-open 0.72s steps(7, end) forwards;
   }
   .mac-window.closing {
     display: block;
-    animation: win-close 0.36s steps(4, end) forwards;
+    animation: win-close 0.28s ease-in forwards;
   }
-
-  /* Lo-fi open: choppy steps, window snaps between sizes like a bad frame rate */
-  @keyframes win-open {
-    0%   { transform: var(--win-translate) scale(0.04); opacity: 0.9; filter: brightness(4) saturate(0) blur(1px); }
-    14%  { transform: var(--win-translate) scale(0.15); opacity: 1;   filter: brightness(3) saturate(0); }
-    28%  { transform: var(--win-translate) scale(0.15); opacity: 0.7; filter: brightness(2.5) saturate(0); }
-    42%  { transform: var(--win-translate) scale(0.38); opacity: 1;   filter: brightness(2) saturate(0.2); }
-    56%  { transform: var(--win-translate) scale(0.38); opacity: 0.6; filter: brightness(1.6) saturate(0.4); }
-    70%  { transform: var(--win-translate) scale(0.72); opacity: 1;   filter: brightness(1.2) saturate(0.7); }
-    84%  { transform: var(--win-translate) scale(0.72); opacity: 0.8; filter: brightness(1.1); }
-    100% { transform: var(--win-translate) scale(1.0);  opacity: 1;   filter: brightness(1); }
-  }
-
-  /* Lo-fi close: snaps back in big jumps */
   @keyframes win-close {
-    0%   { transform: var(--win-translate) scale(1.0);  opacity: 1;   filter: brightness(1); }
-    30%  { transform: var(--win-translate) scale(0.55); opacity: 1;   filter: brightness(1.8) saturate(0.3); }
-    60%  { transform: var(--win-translate) scale(0.55); opacity: 0.5; filter: brightness(2.5) saturate(0); }
-    85%  { transform: var(--win-translate) scale(0.08); opacity: 0.8; filter: brightness(3) saturate(0); }
-    100% { transform: var(--win-translate) scale(0.0);  opacity: 0; }
+    0%   { opacity: 1; transform: translate(-50%,-50%) scale(1.0); }
+    60%  { opacity: 1; transform: translate(-50%,-50%) scale(0.6); }
+    100% { opacity: 0; transform: translate(-50%,-50%) scale(0.0); }
   }
 
-  /* Echo ghost — faint afterimage that trails behind the opening window */
-  .mac-window-echo {
+  /* Zoom-rect canvas sits over everything during open animation */
+  #zoom-rect-canvas {
     position: fixed;
+    inset: 0;
     pointer-events: none;
-    z-index: 999;
-    background: var(--mac-gray);
-    border: 2px solid var(--mac-black);
-    width: min(600px, 90vw);
+    z-index: 1100;
     image-rendering: pixelated;
-  }
-  @keyframes win-echo {
-    0%   { transform: var(--win-translate) scale(0.04); opacity: 0.5; filter: brightness(3) saturate(0); }
-    40%  { transform: var(--win-translate) scale(0.28); opacity: 0.3; filter: brightness(2); }
-    70%  { transform: var(--win-translate) scale(0.55); opacity: 0.15;}
-    100% { transform: var(--win-translate) scale(0.90); opacity: 0;  }
   }
 
   /* Title bar */
@@ -370,6 +346,7 @@
 
 <!-- SPARKLE CANVAS -->
 <canvas id="sparkle-canvas"></canvas>
+<canvas id="zoom-rect-canvas"></canvas>
 
 <!-- SCENE -->
 <div id="scene">
@@ -692,73 +669,163 @@ document.querySelectorAll('.hotspot').forEach(hotspot => {
 // ════════════════════════════════════════
 const overlay = document.getElementById('overlay');
 
+// ── ZOOM RECT CANVAS ──
+// Draws the classic Mac-style animated outline rectangle that zooms
+// from the hotspot to the window's final position before revealing content.
+const zoomCanvas = document.getElementById('zoom-rect-canvas');
+const zoomCtx = zoomCanvas.getContext('2d');
+function resizeZoomCanvas() {
+  zoomCanvas.width  = window.innerWidth;
+  zoomCanvas.height = window.innerHeight;
+}
+resizeZoomCanvas();
+window.addEventListener('resize', resizeZoomCanvas);
+
+function animateZoomRect(fromRect, toRect, onDone) {
+  // fromRect / toRect: { x, y, w, h } in viewport coords
+  const DURATION = 340;  // ms — feels like a real old Mac
+  const start = performance.now();
+
+  // Dashed line pattern — 4px on, 4px off, very pixel-y
+  const DASH = [4, 4];
+  let dashOffset = 0;
+
+  function frame(now) {
+    const elapsed = now - start;
+    let t = Math.min(elapsed / DURATION, 1);
+
+    // Ease: fast start, decelerates — classic Mac feel
+    t = 1 - Math.pow(1 - t, 2.4);
+
+    // Interpolate rect
+    const x = fromRect.x + (toRect.x - fromRect.x) * t;
+    const y = fromRect.y + (toRect.y - fromRect.y) * t;
+    const w = fromRect.w + (toRect.w - fromRect.w) * t;
+    const h = fromRect.h + (toRect.h - fromRect.h) * t;
+
+    zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
+
+    // Draw marching-ants outline rectangle
+    // Outer black rect
+    zoomCtx.strokeStyle = '#000000';
+    zoomCtx.lineWidth = 2;
+    zoomCtx.setLineDash(DASH);
+    zoomCtx.lineDashOffset = -dashOffset;
+    zoomCtx.strokeRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+
+    // Inner white rect offset by 2px — gives that double-outline pixel look
+    zoomCtx.strokeStyle = '#ffffff';
+    zoomCtx.lineWidth = 1;
+    zoomCtx.lineDashOffset = -dashOffset - 4; // offset so white fills the black gaps
+    zoomCtx.strokeRect(Math.round(x)+1, Math.round(y)+1, Math.round(w)-2, Math.round(h)-2);
+
+    zoomCtx.setLineDash([]); // reset
+
+    dashOffset = (dashOffset + 1.5) % 8; // march the ants
+
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
+      onDone();
+    }
+  }
+
+  requestAnimationFrame(frame);
+}
+
 function openWindow(id, originEl) {
   const win = document.getElementById('window-' + id);
   if (!win) return;
 
-  // Close any already-open windows first
+  // Close any already-open windows
   document.querySelectorAll('.mac-window.active, .mac-window.closing').forEach(w => {
     w.classList.remove('active', 'closing');
     w.style.display = 'none';
   });
-  // Remove any lingering echo ghosts
-  document.querySelectorAll('.mac-window-echo').forEach(e => e.remove());
 
-  // ── COMPUTE ORIGIN ──
-  // The window is centered via translate(-50%,-50%) from top:50% left:50%.
-  // We need transform-origin expressed in px relative to the window element,
-  // pointing at the center of the clicked hotspot.
-  let originX = '50%', originY = '50%'; // fallback: screen center
+  // ── COMPUTE RECTS ──
+  // "from" rect = the bounding box of the hotspot that was clicked
+  // "to" rect   = the final resting position of the window (centered)
+  const winW = Math.min(600, window.innerWidth  * 0.9);
 
+  // Reveal the window off-screen to measure its height
+  win.style.visibility = 'hidden';
+  win.style.display = 'block';
+  const winH = Math.min(win.offsetHeight, window.innerHeight * 0.8);
+  win.style.display = 'none';
+  win.style.visibility = '';
+
+  const toRect = {
+    x: (window.innerWidth  - winW) / 2,
+    y: (window.innerHeight - winH) / 2,
+    w: winW,
+    h: winH,
+  };
+
+  let fromRect;
   if (originEl) {
-    const rect = originEl.getBoundingClientRect();
-    const hotCX = rect.left + rect.width  / 2; // hotspot center in viewport px
-    const hotCY = rect.top  + rect.height / 2;
-
-    // Window's final rendered size & position
-    const winW = Math.min(600, window.innerWidth  * 0.9);
-    // Height unknown until rendered — use a reasonable estimate
-    const winH = Math.min(500, window.innerHeight * 0.8);
-    const winLeft = (window.innerWidth  - winW) / 2;
-    const winTop  = (window.innerHeight - winH) / 2;
-
-    // Transform-origin in window-local coords
-    originX = (hotCX - winLeft) + 'px';
-    originY = (hotCY - winTop)  + 'px';
+    const r = originEl.getBoundingClientRect();
+    fromRect = { x: r.left, y: r.top, w: r.width, h: r.height };
+  } else {
+    // Fallback: start from screen center as a tiny dot
+    fromRect = {
+      x: window.innerWidth  / 2 - 4,
+      y: window.innerHeight / 2 - 4,
+      w: 8, h: 8
+    };
   }
 
-  win.style.transformOrigin = `${originX} ${originY}`;
-  // Also store as CSS var so keyframes can reference translate separately
-  win.style.setProperty('--win-translate', 'translate(-50%, -50%)');
+  // ── RUN ANIMATION ──
+  // 1. Draw zoom rect from hotspot → window position
+  // 2. When done, reveal the actual window with a quick fade-in
+  animateZoomRect(fromRect, toRect, () => {
+    // Window content fades in smoothly after rect lands
+    win.style.transform = 'translate(-50%, -50%)';
+    win.style.opacity = '0';
+    win.classList.remove('closing');
+    win.style.display = 'block';
+    win.style.transition = 'opacity 0.18s ease-out';
+    void win.offsetWidth;
+    win.style.opacity = '1';
+    overlay.classList.add('active');
 
-  // ── ECHO GHOST ── faint afterimage that lags behind the opening window
-  const echo = document.createElement('div');
-  echo.className = 'mac-window-echo';
-  echo.style.top  = '50%';
-  echo.style.left = '50%';
-  echo.style.maxHeight = '80vh';
-  echo.style.transformOrigin = `${originX} ${originY}`;
-  echo.style.setProperty('--win-translate', 'translate(-50%, -50%)');
-  echo.style.animation = 'win-echo 0.72s steps(7, end) forwards';
-  // Echo is just a blank shell — same size, no content
-  echo.style.height = win.offsetHeight ? win.offsetHeight + 'px' : '400px';
-  document.body.appendChild(echo);
-  setTimeout(() => echo.remove(), 750);
-
-  win.classList.remove('closing');
-  win.style.display = '';
-  void win.offsetWidth; // force reflow
-  win.classList.add('active');
-  overlay.classList.add('active');
+    // Clean up inline transition after it fires
+    setTimeout(() => {
+      win.style.transition = '';
+      win.classList.add('active');
+    }, 200);
+  });
 }
 
 function closeWindow(id) {
   const win = document.getElementById('window-' + id);
   if (!win) return;
-  win.classList.remove('active');
-  win.classList.add('closing');
   overlay.classList.remove('active');
-  setTimeout(() => { win.classList.remove('closing'); win.style.display = 'none'; }, 400);
+
+  // Animate close: draw zoom rect collapsing back toward the window's hotspot
+  // For simplicity, collapse to center of screen
+  const winRect = win.getBoundingClientRect();
+  const fromRect = { x: winRect.left, y: winRect.top, w: winRect.width, h: winRect.height };
+  const toRect   = {
+    x: winRect.left + winRect.width  / 2 - 4,
+    y: winRect.top  + winRect.height / 2 - 4,
+    w: 8, h: 8
+  };
+
+  // Fade out window content first, then draw closing zoom rect
+  win.style.transition = 'opacity 0.1s ease-in';
+  win.style.opacity = '0';
+
+  setTimeout(() => {
+    win.style.display = 'none';
+    win.style.opacity = '';
+    win.style.transition = '';
+    win.classList.remove('active', 'closing');
+
+    // Quick reverse zoom rect
+    animateZoomRect(fromRect, toRect, () => {});
+  }, 100);
 }
 
 // Close buttons
@@ -771,9 +838,9 @@ document.querySelectorAll('.mac-close-btn').forEach(btn => {
 // Overlay click to close
 overlay.addEventListener('click', () => {
   document.querySelectorAll('.mac-window.active').forEach(w => {
-    w.classList.remove('active');
+    const id = w.id.replace('window-', '');
+    closeWindow(id);
   });
-  overlay.classList.remove('active');
 });
 
 // ════════════════════════════════════════
