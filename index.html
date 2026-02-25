@@ -164,22 +164,15 @@
     animation: win-pop-close 0.42s steps(6, end) forwards;
   }
 
-  /* Pixelated pop: punch out slightly, then shatter-collapse in big stepped jumps */
+  /* Pixelated pop: punch out → flash white → collapse in big stepped jumps */
   @keyframes win-pop-close {
-    0%   { transform: translate(-50%,-50%) scale(1.0);  opacity: 1;
-           filter: brightness(1); }
-    16%  { transform: translate(-50%,-50%) scale(1.08); opacity: 1;
-           filter: brightness(2.5) saturate(0) contrast(2); }
-    33%  { transform: translate(-50%,-50%) scale(0.85); opacity: 1;
-           filter: brightness(1.8) saturate(0); }
-    50%  { transform: translate(-50%,-50%) scale(0.55); opacity: 1;
-           filter: brightness(3) saturate(0) blur(0px); }
-    66%  { transform: translate(-50%,-50%) scale(0.28); opacity: 0.8;
-           filter: brightness(4) saturate(0); }
-    83%  { transform: translate(-50%,-50%) scale(0.08); opacity: 0.4;
-           filter: brightness(6) saturate(0); }
-    100% { transform: translate(-50%,-50%) scale(0.0);  opacity: 0;
-           filter: brightness(8) saturate(0); }
+    0%   { transform: translate(-50%,-50%) scale(1.00); opacity: 1;   filter: brightness(1); }
+    17%  { transform: translate(-50%,-50%) scale(1.10); opacity: 1;   filter: brightness(3) saturate(0); }
+    33%  { transform: translate(-50%,-50%) scale(1.10); opacity: 1;   filter: brightness(5) saturate(0); }
+    50%  { transform: translate(-50%,-50%) scale(0.50); opacity: 1;   filter: brightness(3) saturate(0); }
+    67%  { transform: translate(-50%,-50%) scale(0.50); opacity: 0.7; filter: brightness(4) saturate(0); }
+    83%  { transform: translate(-50%,-50%) scale(0.10); opacity: 0.4; filter: brightness(6) saturate(0); }
+    100% { transform: translate(-50%,-50%) scale(0.00); opacity: 0;   filter: brightness(8) saturate(0); }
   }
 
   /* Zoom-rect canvas sits over everything during open animation */
@@ -763,31 +756,44 @@ function animateZoomRect(fromRect, toRect, onDone) {
   requestAnimationFrame(frame);
 }
 
+// ── Z-INDEX MANAGER ──
+// Each time a window is clicked or opened it gets the highest z-index
+// so it floats above all others. Base is 1000, increments up.
+let topZ = 1000;
+function bringToFront(win) {
+  topZ++;
+  win.style.zIndex = topZ;
+}
+
+// Stagger offset so multiple windows don't open perfectly stacked
+let openCount = 0;
+
 function openWindow(id, originEl) {
   const win = document.getElementById('window-' + id);
   if (!win) return;
 
-  // Close any already-open windows
-  document.querySelectorAll('.mac-window.active, .mac-window.closing').forEach(w => {
-    w.classList.remove('active', 'closing');
-    w.style.display = 'none';
-  });
+  // If already open, just bring to front — don't re-animate
+  if (win.classList.contains('active')) {
+    bringToFront(win);
+    return;
+  }
 
-  // ── COMPUTE RECTS ──
-  // "from" rect = the bounding box of the hotspot that was clicked
-  // "to" rect   = the final resting position of the window (centered)
-  const winW = Math.min(600, window.innerWidth  * 0.9);
-
-  // Reveal the window off-screen to measure its height
+  // Measure window height off-screen
   win.style.visibility = 'hidden';
   win.style.display = 'block';
+  const winW = Math.min(600, window.innerWidth * 0.9);
   const winH = Math.min(win.offsetHeight, window.innerHeight * 0.8);
   win.style.display = 'none';
   win.style.visibility = '';
 
+  // Cascade offset — each new window opens slightly offset from center
+  // so stacked windows are visibly separate
+  const cascade = (openCount % 5) * 22; // 0, 22, 44, 66, 88 px
+  openCount++;
+
   const toRect = {
-    x: (window.innerWidth  - winW) / 2,
-    y: (window.innerHeight - winH) / 2,
+    x: (window.innerWidth  - winW) / 2 + cascade,
+    y: (window.innerHeight - winH) / 2 + cascade,
     w: winW,
     h: winH,
   };
@@ -797,7 +803,6 @@ function openWindow(id, originEl) {
     const r = originEl.getBoundingClientRect();
     fromRect = { x: r.left, y: r.top, w: r.width, h: r.height };
   } else {
-    // Fallback: start from screen center as a tiny dot
     fromRect = {
       x: window.innerWidth  / 2 - 4,
       y: window.innerHeight / 2 - 4,
@@ -805,21 +810,21 @@ function openWindow(id, originEl) {
     };
   }
 
-  // ── RUN ANIMATION ──
-  // 1. Draw zoom rect from hotspot → window position
-  // 2. When done, reveal the actual window with a quick fade-in
   animateZoomRect(fromRect, toRect, () => {
-    // Window content fades in smoothly after rect lands
-    win.style.transform = 'translate(-50%, -50%)';
-    win.style.opacity = '0';
+    // Position at the cascaded location using absolute px (not % + transform)
+    // so drag works cleanly from the start without any coordinate system switch
+    win.style.transform  = 'none';
+    win.style.left       = toRect.x + 'px';
+    win.style.top        = toRect.y + 'px';
+    win.style.opacity    = '0';
+    win.style.transition = '';
     win.classList.remove('closing');
-    win.style.display = 'block';
-    win.style.transition = 'opacity 0.18s ease-out';
+    win.style.display    = 'block';
+    bringToFront(win);
     void win.offsetWidth;
-    win.style.opacity = '1';
-    overlay.classList.add('active');
+    win.style.transition = 'opacity 0.18s ease-out';
+    win.style.opacity    = '1';
 
-    // Clean up inline transition after it fires
     setTimeout(() => {
       win.style.transition = '';
       win.classList.add('active');
@@ -830,22 +835,38 @@ function openWindow(id, originEl) {
 function closeWindow(id) {
   const win = document.getElementById('window-' + id);
   if (!win) return;
-  overlay.classList.remove('active');
 
-  // Make sure window is in a clean state before animating
-  win.style.transform = '';
-  win.style.opacity   = '';
+  // The window is positioned with absolute left/top px (set by openWindow).
+  // The pop keyframes use translate(-50%,-50%) which assumes left:50% top:50%.
+  // So we need to convert: keep the visual center position but switch to
+  // the % + translate system the keyframes expect.
+  const rect = win.getBoundingClientRect();
+  const cx = rect.left + rect.width  / 2;
+  const cy = rect.top  + rect.height / 2;
+
+  win.style.left      = cx + 'px';
+  win.style.top       = cy + 'px';
+  win.style.transform = 'translate(-50%, -50%)';
+  win.style.opacity   = '1';
   win.style.transition = '';
 
   win.classList.remove('active');
-  void win.offsetWidth; // force reflow so animation restarts clean
+  void win.offsetWidth; // force reflow
   win.classList.add('closing');
 
-  // Clean up after animation completes (6 steps × 42ms = ~420ms + buffer)
   setTimeout(() => {
     win.classList.remove('closing');
-    win.style.display = 'none';
-  }, 480);
+    win.style.display    = 'none';
+    win.style.left       = '';
+    win.style.top        = '';
+    win.style.transform  = '';
+    win.style.zIndex     = '';
+  }, 500);
+
+  // Hide overlay only if no other windows remain open
+  const anyOpen = Array.from(document.querySelectorAll('.mac-window.active'))
+    .some(w => w.id !== 'window-' + id);
+  if (!anyOpen) overlay.classList.remove('active');
 }
 
 // Close buttons
@@ -855,45 +876,48 @@ document.querySelectorAll('.mac-close-btn').forEach(btn => {
   });
 });
 
-// Overlay click to close
-overlay.addEventListener('click', () => {
-  document.querySelectorAll('.mac-window.active').forEach(w => {
-    const id = w.id.replace('window-', '');
-    closeWindow(id);
-  });
-});
+// No overlay click-to-close — windows stay open until X is clicked.
+// Overlay is now just a subtle dim behind the topmost window.
 
 // ════════════════════════════════════════
-// DRAGGABLE WINDOWS
+// DRAGGABLE WINDOWS + BRING TO FRONT
 // ════════════════════════════════════════
-document.querySelectorAll('.mac-titlebar').forEach(titlebar => {
-  let isDragging = false;
-  let startX, startY, startLeft, startTop;
-  const win = titlebar.closest('.mac-window');
+// Single shared drag state — only one window drags at a time
+let dragState = null;
+
+// Attach drag to a window element (called for both static + dynamic windows)
+function makeDraggable(win) {
+  const titlebar = win.querySelector('.mac-titlebar');
+  if (!titlebar) return;
+
+  // Clicking anywhere on the window brings it to front
+  win.addEventListener('mousedown', () => bringToFront(win));
 
   titlebar.addEventListener('mousedown', e => {
     if (e.target.classList.contains('mac-close-btn')) return;
-    isDragging = true;
-    const rect = win.getBoundingClientRect();
-    // Switch from transform to absolute positioning
-    win.style.transform = 'none';
-    win.style.left = rect.left + 'px';
-    win.style.top = rect.top + 'px';
-    startX = e.clientX - rect.left;
-    startY = e.clientY - rect.top;
     e.preventDefault();
-  });
+    bringToFront(win);
 
-  document.addEventListener('mousemove', e => {
-    if (!isDragging) return;
-    win.style.left = (e.clientX - startX) + 'px';
-    win.style.top = (e.clientY - startY) + 'px';
+    const rect = win.getBoundingClientRect();
+    // Windows are positioned with absolute left/top px — read directly
+    dragState = {
+      win,
+      startX: e.clientX - rect.left,
+      startY: e.clientY - rect.top,
+    };
   });
+}
 
-  document.addEventListener('mouseup', () => {
-    isDragging = false;
-  });
+document.addEventListener('mousemove', e => {
+  if (!dragState) return;
+  dragState.win.style.left = (e.clientX - dragState.startX) + 'px';
+  dragState.win.style.top  = (e.clientY - dragState.startY) + 'px';
 });
+
+document.addEventListener('mouseup', () => { dragState = null; });
+
+// Attach to all static windows on load
+document.querySelectorAll('.mac-window').forEach(makeDraggable);
 
 // ════════════════════════════════════════
 // ADDING NEW HOTSPOTS via JSON config
@@ -993,26 +1017,8 @@ function buildProjectFromConfig(project) {
 
   win.querySelector('.mac-close-btn').addEventListener('click', () => closeWindow(project.id));
 
-  // Draggable
-  const tb = win.querySelector('.mac-titlebar');
-  let isDragging = false, startX, startY;
-  tb.addEventListener('mousedown', e => {
-    if (e.target.classList.contains('mac-close-btn')) return;
-    isDragging = true;
-    const rect = win.getBoundingClientRect();
-    win.style.transform = 'none';
-    win.style.left = rect.left + 'px';
-    win.style.top = rect.top + 'px';
-    startX = e.clientX - rect.left;
-    startY = e.clientY - rect.top;
-    e.preventDefault();
-  });
-  document.addEventListener('mousemove', e => {
-    if (!isDragging) return;
-    win.style.left = (e.clientX - startX) + 'px';
-    win.style.top = (e.clientY - startY) + 'px';
-  });
-  document.addEventListener('mouseup', () => { isDragging = false; });
+  // Make draggable + bring-to-front using the shared drag system
+  makeDraggable(win);
 }
 
 PROJECTS.forEach(buildProjectFromConfig);
