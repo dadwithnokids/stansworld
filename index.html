@@ -830,8 +830,8 @@ function popExplode(rect) {
     [15, 7,13, 5]
   ];
   const BAYER_SIZE = 4;
-  const TILE   = 5;   // px per dither cell — lo-fi chunky feel
-  const FRAMES = 70;  // slow fade ~1.15s at 60fps
+  const TILE   = 2;   // smaller dither cells — fine grain pixelated texture
+  const FRAMES = 160; // slow fade ~2.7s at 60fps
   const COLORS = ['#c0c0c0','#d0d0d0','#e8e8e8','#a8a8a8','#888888','#ffffff'];
 
   // Build cell grid covering the window rect
@@ -875,7 +875,7 @@ function popExplode(rect) {
 
     // progress: ease-out so it starts fast then lingers at the end
     const raw = frame / FRAMES;
-    const progress = 1 - Math.pow(1 - raw, 1.8);
+    const progress = 1 - Math.pow(1 - raw, 1.2); // almost linear, very slow burn
 
     cells.forEach(cell => {
       if (progress >= cell.dissolveAt) return; // this cell is gone
@@ -884,14 +884,14 @@ function popExplode(rect) {
       const margin = cell.dissolveAt - progress;
 
       let alpha;
-      if (margin < 0.12) {
+      if (margin < 0.22) {
         // Fringe zone — Bayer dither decides if this cell draws or not
         // giving a crispy pixelated dissolve edge
-        const fringeT = margin / 0.12; // 1 = solid, 0 = about to vanish
+        const fringeT = margin / 0.22; // 1 = solid, 0 = about to vanish
         alpha = cell.bThresh < fringeT ? 0.9 : 0;
       } else {
         // Interior — solid but gently dimming
-        alpha = Math.max(0, 1 - progress * 0.3);
+        alpha = Math.max(0, 1 - progress * 0.15); // very gentle interior dimming
       }
 
       if (alpha <= 0) return;
