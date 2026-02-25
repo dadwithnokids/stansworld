@@ -127,7 +127,7 @@
   #sparkle-canvas {
     position: fixed; inset: 0;
     pointer-events: none;
-    z-index: 9998;
+    z-index: 500;  /* below window (1000) and overlay (999) */
   }
 
   /* ── MAC OS CLASSIC MODAL ── */
@@ -150,18 +150,36 @@
     image-rendering: pixelated;
     transform-origin: center center; /* overridden by JS at open time */
   }
+  /* Force cursor:none on everything inside the window — prevents double cursor */
+  .mac-window, .mac-window * {
+    cursor: none !important;
+  }
+
   /* Window starts hidden; JS controls visibility during zoom-rect animation */
   .mac-window.active {
     display: block;
   }
   .mac-window.closing {
     display: block;
-    animation: win-close 0.28s ease-in forwards;
+    animation: win-pop-close 0.42s steps(6, end) forwards;
   }
-  @keyframes win-close {
-    0%   { opacity: 1; transform: translate(-50%,-50%) scale(1.0); }
-    60%  { opacity: 1; transform: translate(-50%,-50%) scale(0.6); }
-    100% { opacity: 0; transform: translate(-50%,-50%) scale(0.0); }
+
+  /* Pixelated pop: punch out slightly, then shatter-collapse in big stepped jumps */
+  @keyframes win-pop-close {
+    0%   { transform: translate(-50%,-50%) scale(1.0);  opacity: 1;
+           filter: brightness(1); }
+    16%  { transform: translate(-50%,-50%) scale(1.08); opacity: 1;
+           filter: brightness(2.5) saturate(0) contrast(2); }
+    33%  { transform: translate(-50%,-50%) scale(0.85); opacity: 1;
+           filter: brightness(1.8) saturate(0); }
+    50%  { transform: translate(-50%,-50%) scale(0.55); opacity: 1;
+           filter: brightness(3) saturate(0) blur(0px); }
+    66%  { transform: translate(-50%,-50%) scale(0.28); opacity: 0.8;
+           filter: brightness(4) saturate(0); }
+    83%  { transform: translate(-50%,-50%) scale(0.08); opacity: 0.4;
+           filter: brightness(6) saturate(0); }
+    100% { transform: translate(-50%,-50%) scale(0.0);  opacity: 0;
+           filter: brightness(8) saturate(0); }
   }
 
   /* Zoom-rect canvas sits over everything during open animation */
@@ -814,29 +832,20 @@ function closeWindow(id) {
   if (!win) return;
   overlay.classList.remove('active');
 
-  // Animate close: draw zoom rect collapsing back toward the window's hotspot
-  // For simplicity, collapse to center of screen
-  const winRect = win.getBoundingClientRect();
-  const fromRect = { x: winRect.left, y: winRect.top, w: winRect.width, h: winRect.height };
-  const toRect   = {
-    x: winRect.left + winRect.width  / 2 - 4,
-    y: winRect.top  + winRect.height / 2 - 4,
-    w: 8, h: 8
-  };
+  // Make sure window is in a clean state before animating
+  win.style.transform = '';
+  win.style.opacity   = '';
+  win.style.transition = '';
 
-  // Fade out window content first, then draw closing zoom rect
-  win.style.transition = 'opacity 0.1s ease-in';
-  win.style.opacity = '0';
+  win.classList.remove('active');
+  void win.offsetWidth; // force reflow so animation restarts clean
+  win.classList.add('closing');
 
+  // Clean up after animation completes (6 steps × 42ms = ~420ms + buffer)
   setTimeout(() => {
+    win.classList.remove('closing');
     win.style.display = 'none';
-    win.style.opacity = '';
-    win.style.transition = '';
-    win.classList.remove('active', 'closing');
-
-    // Quick reverse zoom rect
-    animateZoomRect(fromRect, toRect, () => {});
-  }, 100);
+  }, 480);
 }
 
 // Close buttons
