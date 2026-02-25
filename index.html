@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Stanley's Desk</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Chicago&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --mac-gray: #c0c0c0;
+    --mac-dark: #808080;
+    --mac-darker: #404040;
+    --mac-white: #ffffff;
+    --mac-black: #000000;
+    --mac-title: #000080;
+  }
+
+  /* ── ROTATE PROMPT ── */
+  #rotate-prompt {
+    display: none;
+    position: fixed; inset: 0;
+    background: #000;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 1.1rem;
+    text-align: center;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    gap: 1.5rem;
+  }
+  #rotate-prompt .rotate-icon {
+    font-size: 3rem;
+    animation: rotateAnim 2s ease-in-out infinite;
+  }
+  @keyframes rotateAnim {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(90deg); }
+  }
+  @media (orientation: portrait) and (max-width: 768px) {
+    #rotate-prompt { display: flex; }
+    body { overflow: hidden; }
+  }
+
+  /* ── BODY / SCENE ── */
+  body {
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    background: #2a1a0a;
+    font-family: 'Courier New', monospace;
+    cursor: none; /* hide default cursor */
+  }
+
+  #scene {
+    position: relative;
+    width: 100%; height: 100%;
+    background: url('Desk_Image.png') center/cover no-repeat;
+    background-color: #0d0a08;
+  }
+
+  /* Subtle vignette to deepen edges */
+  #scene::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 45%, transparent 40%, rgba(0,0,0,0.35) 100%);
+    pointer-events: none;
+  }
+
+  /* ── CUSTOM CURSOR (KQ pointing hand) ── */
+  #cursor {
+    position: fixed;
+    width: 32px; height: 44px;
+    pointer-events: none;
+    z-index: 99999;
+    transform: translate(-4px, -4px);
+    transition: transform 0.05s;
+  }
+  #cursor svg { width: 100%; height: 100%; }
+  #cursor.pointing { transform: translate(-4px, -4px) scale(1.1); }
+
+  /* ── HOTSPOTS ── */
+  .hotspot {
+    position: absolute;
+    cursor: none;
+    transition: filter 0.2s;
+  }
+  .hotspot img {
+    display: block;
+    image-rendering: pixelated;
+    max-width: 100%;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.6));
+    transition: filter 0.2s;
+  }
+  .hotspot:hover img {
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.6)) brightness(1.1);
+  }
+
+  /* ── SPARKLE CANVAS ── */
+  #sparkle-canvas {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 9998;
+  }
+
+  /* ── MAC OS CLASSIC MODAL ── */
+  .mac-window {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(600px, 90vw);
+    max-height: 80vh;
+    background: var(--mac-gray);
+    border: 2px solid var(--mac-black);
+    box-shadow:
+      inset 1px 1px 0 var(--mac-white),
+      inset -1px -1px 0 var(--mac-dark),
+      2px 2px 0 var(--mac-black),
+      4px 4px 0 rgba(0,0,0,0.3);
+    z-index: 1000;
+    font-family: 'Geneva', 'Charcoal', 'Chicago', 'Courier New', monospace;
+    font-size: 12px;
+  }
+  .mac-window.active { display: block; }
+
+  /* Title bar */
+  .mac-titlebar {
+    background: var(--mac-black);
+    color: var(--mac-white);
+    display: flex;
+    align-items: center;
+    padding: 3px 6px;
+    gap: 6px;
+    user-select: none;
+    cursor: move;
+  }
+  .mac-close-btn {
+    width: 12px; height: 12px;
+    background: var(--mac-gray);
+    border: 1px solid var(--mac-black);
+    box-shadow: inset 1px 1px 0 var(--mac-white);
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: bold;
+  }
+  .mac-close-btn:hover { background: #ff6666; }
+  .mac-close-btn::after { content: '×'; line-height: 1; }
+
+  .mac-title {
+    flex: 1;
+    text-align: center;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* Striped title bar lines (Mac OS classic detail) */
+  .mac-titlebar-stripes {
+    position: absolute;
+    top: 0; left: 28px; right: 28px;
+    height: 100%;
+    background: repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 1px,
+      var(--mac-dark) 1px,
+      var(--mac-dark) 2px
+    );
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  /* Scrollable content area */
+  .mac-content {
+    overflow-y: auto;
+    max-height: calc(80vh - 80px);
+    padding: 12px;
+    background: var(--mac-white);
+    margin: 4px;
+    border: 1px solid var(--mac-dark);
+    box-shadow: inset 1px 1px 0 var(--mac-darker);
+  }
+
+  .mac-content h2 {
+    font-size: 14px;
+    font-weight: bold;
+    border-bottom: 1px solid var(--mac-dark);
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+  }
+  .mac-content p {
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+  .mac-content img {
+    width: 100%;
+    margin: 8px 0;
+    border: 1px solid var(--mac-dark);
+  }
+  .mac-content .project-img-row {
+    display: flex; gap: 6px; margin: 8px 0;
+  }
+  .mac-content .project-img-row img {
+    width: 50%; margin: 0;
+  }
+
+  /* Bottom bar */
+  .mac-footer {
+    padding: 6px 10px;
+    border-top: 1px solid var(--mac-dark);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--mac-gray);
+  }
+  .mac-link {
+    color: var(--mac-black);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 6px;
+    background: var(--mac-gray);
+    border: 1px solid var(--mac-black);
+    box-shadow: inset 1px 1px 0 var(--mac-white), 1px 1px 0 var(--mac-darker);
+  }
+  .mac-link:hover {
+    background: var(--mac-black);
+    color: var(--mac-white);
+  }
+  .mac-link:active {
+    box-shadow: inset 1px 1px 0 var(--mac-darker);
+  }
+
+  /* Scrollbar styling */
+  .mac-content::-webkit-scrollbar { width: 14px; }
+  .mac-content::-webkit-scrollbar-track {
+    background: var(--mac-gray);
+    border-left: 1px solid var(--mac-dark);
+  }
+  .mac-content::-webkit-scrollbar-thumb {
+    background: var(--mac-gray);
+    border: 1px solid var(--mac-dark);
+    box-shadow: inset 1px 1px 0 var(--mac-white);
+  }
+
+  /* ── OVERLAY ── */
+  #overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 999;
+  }
+  #overlay.active { display: block; }
+
+  /* ── DEMO DESK OBJECTS (placeholders) ── */
+  .demo-label {
+    position: absolute;
+    color: rgba(255,255,220,0.5);
+    font-size: 10px;
+    font-family: 'Courier New', monospace;
+    pointer-events: none;
+    text-align: center;
+    transform: translateX(-50%);
+  }
+
+  /* ── HOVER LABEL ── */
+  #hover-label {
+    position: fixed;
+    background: #ffff99;
+    border: 1px solid #000;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    pointer-events: none;
+    z-index: 9997;
+    display: none;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<!-- ROTATE PROMPT -->
+<div id="rotate-prompt">
+  <div class="rotate-icon">📱</div>
+  <p>Please rotate your device<br>to landscape mode to view this site.</p>
+</div>
+
+<!-- CUSTOM CURSOR -->
+<div id="cursor">
+  <svg viewBox="0 0 32 44" xmlns="http://www.w3.org/2000/svg">
+    <!-- KQ-style pointing hand cursor -->
+    <g fill="#f5c87a" stroke="#2a1a00" stroke-width="1.2">
+      <!-- Palm -->
+      <rect x="8" y="20" width="18" height="18" rx="2"/>
+      <!-- Index finger pointing up -->
+      <rect x="13" y="4" width="6" height="20" rx="3"/>
+      <!-- Middle finger -->
+      <rect x="19" y="10" width="5" height="14" rx="2.5"/>
+      <!-- Ring finger -->
+      <rect x="8" y="12" width="5" height="12" rx="2.5"/>
+      <!-- Pinky -->
+      <rect x="3" y="16" width="5" height="10" rx="2.5"/>
+      <!-- Thumb -->
+      <rect x="23" y="22" width="5" height="8" rx="2.5"/>
+      <!-- Fingernail on index -->
+      <rect x="14" y="4" width="4" height="5" rx="2" fill="#f0d9a0"/>
+      <!-- Knuckle lines -->
+      <line x1="9" y1="24" x2="25" y2="24" stroke="#c8a060" stroke-width="0.8"/>
+      <line x1="9" y1="28" x2="25" y2="28" stroke="#c8a060" stroke-width="0.8"/>
+    </g>
+  </svg>
+</div>
+
+<!-- HOVER TOOLTIP -->
+<div id="hover-label"></div>
+
+<!-- SPARKLE CANVAS -->
+<canvas id="sparkle-canvas"></canvas>
+
+<!-- SCENE -->
+<div id="scene">
+
+  <!-- ═══════════════════════════════
+       HOTSPOTS — edit these!
+       Each .hotspot needs:
+         data-project="project-id"
+         data-label="Hover label text"
+         style="left: X%; top: Y%; width: W%"
+       ═══════════════════════════════ -->
+
+  <!-- 
+    HOTSPOT POSITIONS — tuned to the actual desk image.
+    Desk surface safe zone: left 5%–90%, top 45%–88%
+    Lit center area: left 30%–75%, top 48%–75%
+  -->
+
+  <!-- HOTSPOT 1: Snacktion Box — left side of desk -->
+  <div class="hotspot" 
+       data-project="snacktion" 
+       data-label="Snacktion Set"
+       style="left: 18%; top: 53%; width: 10%;">
+    <svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg" style="width:100%">
+      <rect x="10" y="10" width="80" height="110" rx="4" fill="#e8c840" stroke="#8a7020" stroke-width="2"/>
+      <rect x="15" y="20" width="70" height="50" fill="#cc3333"/>
+      <text x="50" y="50" text-anchor="middle" font-size="10" fill="white" font-weight="bold">SNACKTION</text>
+      <text x="50" y="62" text-anchor="middle" font-size="7" fill="white">BEEF JERKY</text>
+      <rect x="15" y="80" width="70" height="30" fill="#444" rx="2"/>
+      <text x="50" y="99" text-anchor="middle" font-size="7" fill="#ffcc00">★ LEVEL UP ★</text>
+    </svg>
+  </div>
+
+  <!-- HOTSPOT 2: Boombox — center-right of desk, lying flat -->
+  <div class="hotspot" 
+       data-project="boombox" 
+       data-label="Boombox Jerky Line"
+       style="left: 48%; top: 60%; width: 18%;">
+    <svg viewBox="0 0 140 80" xmlns="http://www.w3.org/2000/svg" style="width:100%">
+      <rect x="5" y="15" width="130" height="55" rx="8" fill="#111" stroke="#444" stroke-width="2"/>
+      <circle cx="30" cy="42" r="18" fill="#222" stroke="#666" stroke-width="2"/>
+      <circle cx="30" cy="42" r="10" fill="#333" stroke="#555"/>
+      <circle cx="30" cy="42" r="3" fill="#888"/>
+      <circle cx="110" cy="42" r="18" fill="#222" stroke="#666" stroke-width="2"/>
+      <circle cx="110" cy="42" r="10" fill="#333" stroke="#555"/>
+      <circle cx="110" cy="42" r="3" fill="#888"/>
+      <rect x="55" y="25" width="30" height="18" rx="2" fill="#333" stroke="#555"/>
+      <rect x="58" y="28" width="24" height="12" fill="#111"/>
+      <rect x="55" y="48" width="6" height="6" rx="1" fill="#cc0000"/>
+      <rect x="64" y="48" width="6" height="6" rx="1" fill="#444"/>
+      <rect x="73" y="48" width="6" height="6" rx="1" fill="#444"/>
+      <rect x="82" y="48" width="6" height="6" rx="1" fill="#444"/>
+    </svg>
+  </div>
+
+  <!-- HOTSPOT 3: Monitor / Entrapnet — back of desk, near window -->
+  <div class="hotspot" 
+       data-project="entrapnet" 
+       data-label="Entrapnet — Win95 Browser Emulator"
+       style="left: 34%; top: 28%; width: 14%;">
+    <svg viewBox="0 0 140 120" xmlns="http://www.w3.org/2000/svg" style="width:100%">
+      <rect x="10" y="5" width="120" height="85" rx="6" fill="#c8c8c0" stroke="#888" stroke-width="2"/>
+      <rect x="18" y="13" width="104" height="65" fill="#001a00"/>
+      <text x="70" y="38" text-anchor="middle" font-size="9" fill="#00cc00" font-family="monospace">C:\&gt;_</text>
+      <text x="70" y="50" text-anchor="middle" font-size="7" fill="#00aa00" font-family="monospace">ENTRAPNT.EXE</text>
+      <text x="70" y="62" text-anchor="middle" font-size="6" fill="#008800" font-family="monospace">Loading...</text>
+      <rect x="50" y="90" width="40" height="8" rx="2" fill="#aaa" stroke="#888"/>
+      <rect x="55" y="98" width="30" height="16" rx="1" fill="#aaa" stroke="#888"/>
+    </svg>
+  </div>
+
+  <!-- HOTSPOT 4: Gentleman's Mist — right side of desk, standing upright -->
+  <div class="hotspot" 
+       data-project="gentlemans-mist" 
+       data-label="Gentleman's Mist"
+       style="left: 74%; top: 46%; width: 5%;">
+    <svg viewBox="0 0 50 110" xmlns="http://www.w3.org/2000/svg" style="width:100%">
+      <rect x="15" y="5" width="20" height="10" rx="3" fill="#888"/>
+      <rect x="18" y="15" width="14" height="5" fill="#777"/>
+      <rect x="8" y="20" width="34" height="80" rx="4" fill="#1a3a5c" stroke="#0a2040" stroke-width="1.5"/>
+      <rect x="12" y="30" width="26" height="50" rx="2" fill="rgba(255,255,255,0.08)"/>
+      <text x="25" y="55" text-anchor="middle" font-size="5" fill="#c8d8e8">GENTLEMAN'S</text>
+      <text x="25" y="63" text-anchor="middle" font-size="4" fill="#c8d8e8">MIST</text>
+      <rect x="10" y="85" width="30" height="8" rx="1" fill="#0a2040" opacity="0.5"/>
+    </svg>
+  </div>
+
+</div><!-- /scene -->
+
+<!-- ══ OVERLAY ══ -->
+<div id="overlay"></div>
+
+<!-- ══ PROJECT WINDOWS ══ -->
+
+<!-- Snacktion Set -->
+<div class="mac-window" id="window-snacktion">
+  <div class="mac-titlebar" data-window="snacktion">
+    <div class="mac-close-btn" data-close="snacktion"></div>
+    <div style="position:relative;flex:1;text-align:center;">
+      <div class="mac-titlebar-stripes"></div>
+      <span class="mac-title">Snacktion Set</span>
+    </div>
+    <div style="width:12px;"></div>
+  </div>
+  <div class="mac-content">
+    <h2>🎮 Snacktion Set</h2>
+    <p>A Nintendo-inspired beef jerky packaging line. Each box in the set is themed around classic gaming — complete with pixel-art aesthetics, level-up messaging, and a collectible feel.</p>
+    <p>The packaging was designed to evoke nostalgia while standing out on the shelf. Each SKU corresponds to a "game genre" with its own color palette and visual language.</p>
+    <div class="project-img-row">
+      <img src="https://placehold.co/260x180/cc3333/ffcc00?text=Snacktion+Front" alt="Snacktion front">
+      <img src="https://placehold.co/260x180/222244/00ff88?text=Snacktion+Back" alt="Snacktion back">
+    </div>
+    <p>Available online and at select retailers. Started as a side experiment — turned into a full product line.</p>
+  </div>
+  <div class="mac-footer">
+    <span style="font-size:10px; color:#666;">Stanley's Desk © 2024</span>
+    <a class="mac-link" href="https://yoursnacksite.com" target="_blank" rel="noopener">↗ View Project</a>
+  </div>
+</div>
+
+<!-- Boombox Jerky -->
+<div class="mac-window" id="window-boombox">
+  <div class="mac-titlebar" data-window="boombox">
+    <div class="mac-close-btn" data-close="boombox"></div>
+    <div style="position:relative;flex:1;text-align:center;">
+      <div class="mac-titlebar-stripes"></div>
+      <span class="mac-title">Boombox Jerky Line</span>
+    </div>
+    <div style="width:12px;"></div>
+  </div>
+  <div class="mac-content">
+    <h2>📻 Boombox Series</h2>
+    <p>The next evolution of the themed jerky line — a boombox-inspired packaging series leaning into 80s hip-hop, street culture, and that heavy chrome aesthetic.</p>
+    <p>Currently in development. Each flavor maps to a different "frequency" — the packaging acts as a collectible piece you'd want displayed, not just eaten.</p>
+    <img src="https://placehold.co/560x220/111111/ff6600?text=Boombox+Series+Concept" alt="Boombox concept">
+    <p>Target launch: 2025. Testing three SKUs initially.</p>
+  </div>
+  <div class="mac-footer">
+    <span style="font-size:10px; color:#666;">Stanley's Desk © 2024</span>
+    <a class="mac-link" href="https://yoursite.com/boombox" target="_blank" rel="noopener">↗ View Project</a>
+  </div>
+</div>
+
+<!-- Entrapnet -->
+<div class="mac-window" id="window-entrapnet">
+  <div class="mac-titlebar" data-window="entrapnet">
+    <div class="mac-close-btn" data-close="entrapnet"></div>
+    <div style="position:relative;flex:1;text-align:center;">
+      <div class="mac-titlebar-stripes"></div>
+      <span class="mac-title">Entrapnet — Win95 Emulator</span>
+    </div>
+    <div style="width:12px;"></div>
+  </div>
+  <div class="mac-content">
+    <h2>💾 Entrapnet Browser Emulator</h2>
+    <p>A fully playable Windows 95 environment that runs in your browser — built using the v86 emulator, configured to auto-boot and launch ENTRAPNT.EXE on load.</p>
+    <p>The project involved overcoming multiple GitHub Pages deployment challenges, custom BIOS configuration, and optimizing load times for the disk image. The result is a dead-accurate DOS/Win95 experience that needs no installation.</p>
+    <img src="https://placehold.co/560x200/001a00/00cc00?text=C%3A%5C%3E+ENTRAPNT.EXE" alt="Entrapnet running">
+    <p>Playable on Archive.org. The concept: resurrect a forgotten piece of digital history and make it accessible to anyone with a browser.</p>
+  </div>
+  <div class="mac-footer">
+    <span style="font-size:10px; color:#666;">Stanley's Desk © 2024</span>
+    <a class="mac-link" href="https://archive.org/details/entrapnet" target="_blank" rel="noopener">↗ Play on Archive.org</a>
+  </div>
+</div>
+
+<!-- Gentleman's Mist -->
+<div class="mac-window" id="window-gentlemans-mist">
+  <div class="mac-titlebar" data-window="gentlemans-mist">
+    <div class="mac-close-btn" data-close="gentlemans-mist"></div>
+    <div style="position:relative;flex:1;text-align:center;">
+      <div class="mac-titlebar-stripes"></div>
+      <span class="mac-title">Gentleman's Mist</span>
+    </div>
+    <div style="width:12px;"></div>
+  </div>
+  <div class="mac-content">
+    <h2>🧴 Gentleman's Mist</h2>
+    <p>A handcrafted men's grooming body spray developed from scratch — formulated with essential oils sourced from India, scaled for both barber shop wholesale and direct online retail.</p>
+    <p>The project involved complete cost structure analysis across two bottle sizes (780 units), fragrance development, and building a pricing model that works at both the barber shop and consumer level.</p>
+    <img src="https://placehold.co/560x180/1a3a5c/c8d8e8?text=Gentleman's+Mist" alt="Gentleman's Mist bottle">
+    <p>Handmade in Louisville, KY. The scent profile leans woody, clean, and understated — something that smells expensive without performing for a room.</p>
+  </div>
+  <div class="mac-footer">
+    <span style="font-size:10px; color:#666;">Stanley's Desk © 2024</span>
+    <a class="mac-link" href="https://yourmistsite.com" target="_blank" rel="noopener">↗ View Project</a>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+// CURSOR TRACKING
+// ════════════════════════════════════════
+const cursor = document.getElementById('cursor');
+document.addEventListener('mousemove', e => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top = e.clientY + 'px';
+});
+
+// ════════════════════════════════════════
+// SPARKLE SYSTEM
+// ════════════════════════════════════════
+const canvas = document.getElementById('sparkle-canvas');
+const ctx = canvas.getContext('2d');
+let sparkles = [];
+let activeHotspot = null;
+let sparkleInterval = null;
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+class Sparkle {
+  constructor(x, y) {
+    this.x = x + (Math.random() - 0.5) * 60;
+    this.y = y + (Math.random() - 0.5) * 60;
+    this.size = Math.floor(Math.random() * 3 + 2); // pixelated sizes: 2,3,4
+    this.life = 1;
+    this.decay = 0.04 + Math.random() * 0.04;
+    this.vx = (Math.random() - 0.5) * 1.5;
+    this.vy = -Math.random() * 2 - 0.5;
+    // 8-bit star colors
+    const colors = ['#ffffff', '#ffff00', '#ffcc00', '#ff99ff', '#99ffff', '#ff6666', '#aaffaa'];
+    this.color = colors[Math.floor(Math.random() * colors.length)];
+    this.shape = Math.random() > 0.5 ? 'star' : 'pixel';
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.life -= this.decay;
+  }
+
+  draw() {
+    ctx.globalAlpha = this.life;
+    ctx.fillStyle = this.color;
+    if (this.shape === 'pixel') {
+      // Pixelated square
+      ctx.fillRect(
+        Math.round(this.x), 
+        Math.round(this.y), 
+        this.size, this.size
+      );
+    } else {
+      // 4-point pixel star
+      const s = this.size;
+      ctx.fillRect(Math.round(this.x), Math.round(this.y - s), s, s * 3); // vertical
+      ctx.fillRect(Math.round(this.x - s), Math.round(this.y), s * 3, s); // horizontal
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function spawnSparklesAt(el) {
+  const rect = el.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  for (let i = 0; i < 4; i++) {
+    sparkles.push(new Sparkle(cx, cy));
+  }
+}
+
+function animateSparkles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  sparkles = sparkles.filter(s => s.life > 0);
+  sparkles.forEach(s => { s.update(); s.draw(); });
+  requestAnimationFrame(animateSparkles);
+}
+animateSparkles();
+
+// ════════════════════════════════════════
+// HOTSPOT HOVER & CLICK
+// ════════════════════════════════════════
+const hoverLabel = document.getElementById('hover-label');
+
+document.querySelectorAll('.hotspot').forEach(hotspot => {
+  hotspot.addEventListener('mouseenter', () => {
+    activeHotspot = hotspot;
+    cursor.classList.add('pointing');
+    hoverLabel.style.display = 'block';
+    hoverLabel.textContent = hotspot.dataset.label || '';
+    
+    sparkleInterval = setInterval(() => {
+      spawnSparklesAt(hotspot);
+    }, 80);
+  });
+
+  hotspot.addEventListener('mousemove', e => {
+    hoverLabel.style.left = (e.clientX + 20) + 'px';
+    hoverLabel.style.top = (e.clientY - 10) + 'px';
+  });
+
+  hotspot.addEventListener('mouseleave', () => {
+    activeHotspot = null;
+    cursor.classList.remove('pointing');
+    hoverLabel.style.display = 'none';
+    if (sparkleInterval) {
+      clearInterval(sparkleInterval);
+      sparkleInterval = null;
+    }
+  });
+
+  hotspot.addEventListener('click', () => {
+    const projectId = hotspot.dataset.project;
+    openWindow(projectId);
+  });
+});
+
+// ════════════════════════════════════════
+// WINDOW MANAGEMENT
+// ════════════════════════════════════════
+const overlay = document.getElementById('overlay');
+
+function openWindow(id) {
+  const win = document.getElementById('window-' + id);
+  if (!win) return;
+  // Close any open windows first
+  document.querySelectorAll('.mac-window.active').forEach(w => w.classList.remove('active'));
+  win.classList.add('active');
+  overlay.classList.add('active');
+}
+
+function closeWindow(id) {
+  const win = document.getElementById('window-' + id);
+  if (win) win.classList.remove('active');
+  overlay.classList.remove('active');
+}
+
+// Close buttons
+document.querySelectorAll('.mac-close-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    closeWindow(btn.dataset.close);
+  });
+});
+
+// Overlay click to close
+overlay.addEventListener('click', () => {
+  document.querySelectorAll('.mac-window.active').forEach(w => {
+    w.classList.remove('active');
+  });
+  overlay.classList.remove('active');
+});
+
+// ════════════════════════════════════════
+// DRAGGABLE WINDOWS
+// ════════════════════════════════════════
+document.querySelectorAll('.mac-titlebar').forEach(titlebar => {
+  let isDragging = false;
+  let startX, startY, startLeft, startTop;
+  const win = titlebar.closest('.mac-window');
+
+  titlebar.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('mac-close-btn')) return;
+    isDragging = true;
+    const rect = win.getBoundingClientRect();
+    // Switch from transform to absolute positioning
+    win.style.transform = 'none';
+    win.style.left = rect.left + 'px';
+    win.style.top = rect.top + 'px';
+    startX = e.clientX - rect.left;
+    startY = e.clientY - rect.top;
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    win.style.left = (e.clientX - startX) + 'px';
+    win.style.top = (e.clientY - startY) + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+  });
+});
+
+// ════════════════════════════════════════
+// ADDING NEW HOTSPOTS via JSON config
+// (Paste your JSON in the array below to add projects without coding)
+// ════════════════════════════════════════
+/*
+  HOW TO ADD A NEW PROJECT:
+  Add an object to the PROJECTS array below:
+
+  {
+    id: "my-new-project",
+    label: "My New Project",         // hover tooltip
+    left: "60%",                     // horizontal position on desk
+    top: "55%",                      // vertical position on desk  
+    width: "10%",                    // size
+    imageSrc: "path/to/image.png",   // your desk object image
+    title: "My New Project",
+    description: "Describe it here...",
+    images: ["img1.jpg", "img2.jpg"],
+    link: "https://myproject.com",
+    linkText: "View Project"
+  }
+*/
+const PROJECTS = [
+  // Add new projects here — they'll be auto-rendered on page load
+];
+
+function buildProjectFromConfig(project) {
+  // Create hotspot
+  const hotspot = document.createElement('div');
+  hotspot.className = 'hotspot';
+  hotspot.dataset.project = project.id;
+  hotspot.dataset.label = project.label;
+  hotspot.style.left = project.left;
+  hotspot.style.top = project.top;
+  hotspot.style.width = project.width || '10%';
+
+  if (project.imageSrc) {
+    const img = document.createElement('img');
+    img.src = project.imageSrc;
+    img.alt = project.label;
+    hotspot.appendChild(img);
+  }
+
+  document.getElementById('scene').appendChild(hotspot);
+
+  // Create window
+  const win = document.createElement('div');
+  win.className = 'mac-window';
+  win.id = 'window-' + project.id;
+
+  const imgRows = (project.images || []).map(src =>
+    `<img src="${src}" alt="${project.title}">`
+  ).join('');
+
+  win.innerHTML = `
+    <div class="mac-titlebar" data-window="${project.id}">
+      <div class="mac-close-btn" data-close="${project.id}"></div>
+      <div style="position:relative;flex:1;text-align:center;">
+        <div class="mac-titlebar-stripes"></div>
+        <span class="mac-title">${project.title}</span>
+      </div>
+      <div style="width:12px;"></div>
+    </div>
+    <div class="mac-content">
+      <h2>${project.title}</h2>
+      ${imgRows}
+      <p>${project.description}</p>
+    </div>
+    <div class="mac-footer">
+      <span style="font-size:10px;color:#666;">Stanley's Desk © 2024</span>
+      ${project.link ? `<a class="mac-link" href="${project.link}" target="_blank" rel="noopener">↗ ${project.linkText || 'View Project'}</a>` : ''}
+    </div>
+  `;
+  document.body.appendChild(win);
+
+  // Attach events
+  hotspot.addEventListener('mouseenter', () => {
+    activeHotspot = hotspot;
+    cursor.classList.add('pointing');
+    hoverLabel.style.display = 'block';
+    hoverLabel.textContent = hotspot.dataset.label;
+    sparkleInterval = setInterval(() => spawnSparklesAt(hotspot), 80);
+  });
+  hotspot.addEventListener('mousemove', e => {
+    hoverLabel.style.left = (e.clientX + 20) + 'px';
+    hoverLabel.style.top = (e.clientY - 10) + 'px';
+  });
+  hotspot.addEventListener('mouseleave', () => {
+    activeHotspot = null;
+    cursor.classList.remove('pointing');
+    hoverLabel.style.display = 'none';
+    clearInterval(sparkleInterval);
+  });
+  hotspot.addEventListener('click', () => openWindow(project.id));
+
+  win.querySelector('.mac-close-btn').addEventListener('click', () => closeWindow(project.id));
+
+  // Draggable
+  const tb = win.querySelector('.mac-titlebar');
+  let isDragging = false, startX, startY;
+  tb.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('mac-close-btn')) return;
+    isDragging = true;
+    const rect = win.getBoundingClientRect();
+    win.style.transform = 'none';
+    win.style.left = rect.left + 'px';
+    win.style.top = rect.top + 'px';
+    startX = e.clientX - rect.left;
+    startY = e.clientY - rect.top;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    win.style.left = (e.clientX - startX) + 'px';
+    win.style.top = (e.clientY - startY) + 'px';
+  });
+  document.addEventListener('mouseup', () => { isDragging = false; });
+}
+
+PROJECTS.forEach(buildProjectFromConfig);
+</script>
+</body>
+</html>
