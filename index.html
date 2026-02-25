@@ -820,105 +820,218 @@ function openWindow(id, originEl) {
 }
 
 function popExplode(rect) {
-  // Draw a canvas-based pixel-pop explosion centered on rect.
-  // Phase 1: window punches out (scale flash drawn on canvas)
-  // Phase 2: pixel chunks scatter outward and fade
+  // Three-phase canvas animation:
+  // PHASE 1 — SQUEEZE: window squishes toward its center like a ball being born (~18 frames)
+  // PHASE 2 — FALL:    the "ball" drops with gravity and bounces slightly (~20 frames)
+  // PHASE 3 — DITHER:  ball dissolves outward using a Bayer dither pattern (~50 frames)
 
-  const PIXEL  = 10;   // chunk size in px — big and blocky
-  const COLORS = ['#c0c0c0','#ffffff','#808080','#000000','#e0e0e0','#404040'];
+  const cx = rect.left + rect.width  / 2;
+  const cy = rect.top  + rect.height / 2;
+  const COLORS = ['#c0c0c0','#d8d8d8','#ffffff','#a0a0a0','#808080','#606060'];
 
-  // Sample a grid of color "chunks" from the window before hiding it
-  const cols = Math.ceil(rect.width  / PIXEL);
-  const rows = Math.ceil(rect.height / PIXEL);
+  // ── Bayer 4×4 threshold matrix (classic ordered dither) ──
+  const BAYER = [
+    [ 0, 8, 2,10],
+    [12, 4,14, 6],
+    [ 3,11, 1, 9],
+    [15, 7,13, 5]
+  ];
+  const BAYER_SIZE = 4;
+  const TILE = 4; // px per dither "pixel" — big enough to read as lo-fi
 
-  // Build particle list — one per grid cell
-  const particles = [];
+  // ── Build pixel grid for dither phase ──
+  // Each cell knows its screen position and dither threshold
+  const GRID = 5; // pixel grid size for particle phase
+  const cols = Math.ceil(rect.width  / GRID);
+  const rows = Math.ceil(rect.height / GRID);
+  const cells = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const cx = rect.left + c * PIXEL + PIXEL / 2;
-      const cy = rect.top  + r * PIXEL + PIXEL / 2;
-      // Velocity radiates outward from window center
-      const dx = cx - (rect.left + rect.width  / 2);
-      const dy = cy - (rect.top  + rect.height / 2);
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const speed = 2.5 + Math.random() * 4;
-      particles.push({
-        x:  cx, y: cy,
-        vx: (dx / dist) * speed * (0.6 + Math.random() * 0.8),
-        vy: (dy / dist) * speed * (0.6 + Math.random() * 0.8) - 1.5,
-        size: PIXEL - Math.floor(Math.random() * 3),
-        color: COLORS[Math.floor(Math.random() * COLORS.length)],
-        alpha: 1,
-        // Skip ~60% of particles so it's sparse and readable
-        skip: Math.random() < 0.60,
-      });
+      const px = rect.left + c * GRID;
+      const py = rect.top  + r * GRID;
+      // Distance from center normalized 0-1
+      const dx = (px + GRID/2 - cx) / (rect.width  / 2);
+      const dy = (py + GRID/2 - cy) / (rect.height / 2);
+      const distN = Math.min(1, Math.sqrt(dx*dx + dy*dy));
+      const bThresh = BAYER[r % BAYER_SIZE][c % BAYER_SIZE] / 16; // 0-1
+      cells.push({ px, py, dx, dy, distN, bThresh,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)] });
     }
   }
 
-  // Phase 1: white flash on canvas (2 frames)
-  let flashFrames = 0;
-  const FLASH_TOTAL = 4;
+  // ── Phase state ──
+  const SQUEEZE_FRAMES = 18;
+  const FALL_FRAMES    = 22;
+  const DITHER_FRAMES  = 55;
 
-  // Phase 2: particle scatter
-  let scatterStarted = false;
-  const SCATTER_DURATION = 38; // frames
-  let scatterFrame = 0;
+  let phase = 1;
+  let frame = 0;
+
+  // Ball state for fall phase
+  let ballX = cx, ballY = cy;
+  let ballW = 30, ballH = 30; // starts small after squeeze
+  let ballVY = 0;
+  const GRAVITY = 0.9;
+
+  function easeOut(t, exp=2.5) { return 1 - Math.pow(1 - t, exp); }
+  function easeIn(t,  exp=2)   { return Math.pow(t, exp); }
 
   function drawFrame() {
     zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
+    const t = frame / (
+      phase === 1 ? SQUEEZE_FRAMES :
+      phase === 2 ? FALL_FRAMES    : DITHER_FRAMES
+    );
 
-    if (flashFrames < FLASH_TOTAL) {
-      // Flash: draw the window rect in white, shrinking slightly each frame
-      const progress = flashFrames / FLASH_TOTAL;
-      const fw = rect.width  * (1 + (1 - progress) * 0.08);
-      const fh = rect.height * (1 + (1 - progress) * 0.08);
-      const fx = rect.left - (fw - rect.width)  / 2;
-      const fy = rect.top  - (fh - rect.height) / 2;
-      const brightness = 1 - progress * 0.5; // 1 → 0.5
-      zoomCtx.globalAlpha = 1 - progress * 0.6;
-      zoomCtx.fillStyle = '#ffffff';
-      zoomCtx.fillRect(Math.round(fx), Math.round(fy), Math.round(fw), Math.round(fh));
-      // Black pixel border
+    // ────────────────────────────────────────
+    // PHASE 1 — SQUEEZE TO BALL
+    // ────────────────────────────────────────
+    if (phase === 1) {
+      const te = easeIn(t, 3);
+      // Width squishes inward, height squishes downward, converging to a circle
+      const w = rect.width  * (1 - te) + ballW * te;
+      const h = rect.height * (1 - te) + ballH * te;
+      const rx = cx - w / 2;
+      const ry = cy - h / 2;
+
+      // Fill: mac gray → white as it collapses
+      const grayVal = Math.round(192 + te * 63);
+      zoomCtx.fillStyle = `rgb(${grayVal},${grayVal},${grayVal})`;
+      zoomCtx.globalAlpha = 1;
+
+      // Draw as rounded rect — rounder as it squeezes
+      const radius = (Math.min(w, h) / 2) * te;
+      zoomCtx.beginPath();
+      zoomCtx.roundRect(Math.round(rx), Math.round(ry), Math.round(w), Math.round(h), radius);
+      zoomCtx.fill();
+
+      // Pixel border
       zoomCtx.strokeStyle = '#000';
       zoomCtx.lineWidth = 2;
-      zoomCtx.setLineDash([]);
-      zoomCtx.strokeRect(Math.round(fx), Math.round(fy), Math.round(fw), Math.round(fh));
-      zoomCtx.globalAlpha = 1;
-      flashFrames++;
-      requestAnimationFrame(drawFrame);
+      zoomCtx.stroke();
 
-    } else {
-      // Scatter phase
-      if (scatterFrame >= SCATTER_DURATION) {
-        zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
-        return; // done
+      // Dither the edges: draw a checkerboard ring just inside the border
+      // so it looks like the window is pixellating as it squeezes
+      if (te > 0.3) {
+        const ditherAlpha = (te - 0.3) / 0.7;
+        zoomCtx.globalAlpha = ditherAlpha * 0.7;
+        const ringW = 8;
+        for (let px = Math.round(rx); px < Math.round(rx + w); px += TILE) {
+          for (let py = Math.round(ry); py < Math.round(ry + h); py += TILE) {
+            const bx = Math.floor((px - Math.round(rx)) / TILE) % BAYER_SIZE;
+            const by = Math.floor((py - Math.round(ry)) / TILE) % BAYER_SIZE;
+            const thresh = BAYER[by][bx] / 16;
+            // Only draw dither ring near edges
+            const insetX = Math.min(px - Math.round(rx), Math.round(rx + w) - px) / w;
+            const insetY = Math.min(py - Math.round(ry), Math.round(ry + h) - py) / h;
+            const edgeness = 1 - Math.min(insetX, insetY) * 8;
+            if (edgeness > 0 && thresh < edgeness * ditherAlpha) {
+              zoomCtx.fillStyle = '#000';
+              zoomCtx.fillRect(px, py, TILE, TILE);
+            }
+          }
+        }
+        zoomCtx.globalAlpha = 1;
       }
 
-      const t = scatterFrame / SCATTER_DURATION;
+      frame++;
+      if (frame >= SQUEEZE_FRAMES) {
+        phase = 2;
+        frame = 0;
+        ballY = cy;
+        ballVY = -3; // small upward pop before falling
+      }
+      requestAnimationFrame(drawFrame);
+    }
 
-      particles.forEach(p => {
-        if (p.skip) return;
-        // Gravity + drag
-        p.vy += 0.25;
-        p.vx *= 0.96;
-        p.vy *= 0.96;
-        p.x  += p.vx;
-        p.y  += p.vy;
-        // Fade out in second half
-        p.alpha = t < 0.4 ? 1 : 1 - ((t - 0.4) / 0.6);
+    // ────────────────────────────────────────
+    // PHASE 2 — BALL FALLS WITH GRAVITY
+    // ────────────────────────────────────────
+    else if (phase === 2) {
+      ballVY += GRAVITY;
+      ballY  += ballVY;
 
-        zoomCtx.globalAlpha = Math.max(0, p.alpha);
-        zoomCtx.fillStyle   = p.color;
-        // Pixelated: snap to pixel grid
+      // Ball shrinks slightly as it falls (squash & stretch)
+      const stretch = 1 + Math.abs(ballVY) * 0.015;
+      const w = ballW / stretch;
+      const h = ballH * stretch;
+
+      zoomCtx.globalAlpha = 1 - easeIn(t, 2) * 0.1; // barely fades
+      zoomCtx.fillStyle = '#e8e8e8';
+      zoomCtx.beginPath();
+      zoomCtx.ellipse(Math.round(ballX), Math.round(ballY), Math.round(w/2), Math.round(h/2), 0, 0, Math.PI*2);
+      zoomCtx.fill();
+      zoomCtx.strokeStyle = '#000';
+      zoomCtx.lineWidth = 2;
+      zoomCtx.stroke();
+      zoomCtx.globalAlpha = 1;
+
+      frame++;
+      if (frame >= FALL_FRAMES) {
+        phase = 3;
+        frame = 0;
+      }
+      requestAnimationFrame(drawFrame);
+    }
+
+    // ────────────────────────────────────────
+    // PHASE 3 — DITHERED DISSOLVE
+    // Ordered dither: cells disappear based on Bayer threshold vs fade progress.
+    // Cells furthest from center vanish first, giving an "imploding" dither.
+    // ────────────────────────────────────────
+    else {
+      if (frame >= DITHER_FRAMES) {
+        zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
+        return;
+      }
+
+      // te goes 0→1 over dither phase — slow ease so it lingers
+      const te = easeOut(t, 1.6);
+
+      // Ball continues falling faintly behind the dither
+      ballVY += GRAVITY * 0.5;
+      ballY  += ballVY;
+      const ballAlpha = Math.max(0, 1 - te * 2.5);
+      if (ballAlpha > 0) {
+        zoomCtx.globalAlpha = ballAlpha;
+        zoomCtx.fillStyle = '#d0d0d0';
+        zoomCtx.beginPath();
+        zoomCtx.ellipse(Math.round(ballX), Math.round(ballY), ballW/2, ballH/2, 0, 0, Math.PI*2);
+        zoomCtx.fill();
+        zoomCtx.globalAlpha = 1;
+      }
+
+      // Draw dithered window ghost — cells with bThresh < current fade are gone
+      cells.forEach(cell => {
+        // Dissolve outward: cells near edge (high distN) disappear first
+        // bThresh adds the ordered-dither texture
+        const dissolveAt = cell.distN * 0.5 + cell.bThresh * 0.5;
+        if (te > dissolveAt) return; // this cell has dissolved
+
+        // Cells near the dissolve frontier flicker (dither edge)
+        const proximity = Math.abs(te - dissolveAt);
+        let alpha;
+        if (proximity < 0.08) {
+          // Dither fringe: use Bayer to decide solid vs transparent
+          alpha = cell.bThresh < (1 - proximity / 0.08) ? 0.9 : 0;
+        } else {
+          // Solid interior: fade very gently
+          alpha = Math.max(0, 1 - te * 0.4);
+        }
+
+        if (alpha <= 0) return;
+        zoomCtx.globalAlpha = alpha;
+        zoomCtx.fillStyle = cell.color;
+        // Snap to even pixel grid — keeps it crunchy
         zoomCtx.fillRect(
-          Math.round(p.x / 2) * 2,
-          Math.round(p.y / 2) * 2,
-          p.size, p.size
+          Math.round(cell.px / TILE) * TILE,
+          Math.round(cell.py / TILE) * TILE,
+          GRID, GRID
         );
       });
 
       zoomCtx.globalAlpha = 1;
-      scatterFrame++;
+      frame++;
       requestAnimationFrame(drawFrame);
     }
   }
