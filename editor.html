@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stan's World — Desk Editor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg:      #0e0c0a;
+    --panel:   #1a1714;
+    --border:  #3a3530;
+    --amber:   #c87820;
+    --amber2:  #e8a040;
+    --text:    #d4c8b0;
+    --dim:     #6a6058;
+    --white:   #f0ece4;
+    --red:     #c84030;
+    --green:   #40a060;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  #topbar h1 {
+    font-size: 13px;
+    color: var(--amber);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  #topbar .sep { color: var(--border); }
+
+  .btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: border-color 0.1s, color 0.1s;
+  }
+  .btn:hover { border-color: var(--amber); color: var(--amber); }
+  .btn.primary {
+    border-color: var(--amber);
+    color: var(--amber);
+    background: rgba(200,120,32,0.08);
+  }
+  .btn.primary:hover { background: rgba(200,120,32,0.18); }
+  .btn.danger { border-color: var(--red); color: var(--red); }
+
+  #hint {
+    margin-left: auto;
+    color: var(--dim);
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── CANVAS AREA ── */
+  #canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #000;
+  }
+
+  #desk-bg {
+    position: absolute;
+    inset: 0;
+    background: url('Desk_Image.png') center/cover no-repeat;
+    background-color: #1a1208;
+    opacity: 0.85;
+  }
+
+  #canvas-overlay {
+    position: absolute;
+    inset: 0;
+    /* grid guides */
+    background-image:
+      linear-gradient(rgba(200,120,32,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(200,120,32,0.04) 1px, transparent 1px);
+    background-size: 5% 5%;
+  }
+
+  /* Hotspot items on the canvas */
+  .desk-item {
+    position: absolute;
+    cursor: grab;
+    user-select: none;
+    outline: 1px dashed rgba(200,120,32,0.4);
+    outline-offset: 2px;
+    transition: outline-color 0.1s;
+  }
+  .desk-item:hover { outline-color: var(--amber); }
+  .desk-item.selected {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+  .desk-item img {
+    display: block;
+    max-width: 100%;
+    image-rendering: pixelated;
+    pointer-events: none;
+    filter: drop-shadow(2px 4px 8px rgba(0,0,0,0.7));
+  }
+  .desk-item .item-label {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: var(--amber);
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 5px;
+    white-space: nowrap;
+    pointer-events: none;
+    border: 1px solid var(--border);
+  }
+  /* placeholder box when no image */
+  .desk-item .placeholder {
+    width: 60px;
+    height: 60px;
+    background: rgba(200,120,32,0.1);
+    border: 1px dashed var(--amber);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--amber);
+    font-size: 9px;
+    text-align: center;
+    padding: 4px;
+  }
+
+  /* position readout */
+  #pos-readout {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    color: var(--amber);
+    font-size: 10px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    pointer-events: none;
+    letter-spacing: 1px;
+  }
+
+  /* ── RIGHT PANEL ── */
+  #panel {
+    width: 300px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  #panel-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .tab {
+    flex: 1;
+    padding: 8px;
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    color: var(--dim);
+    border-bottom: 2px solid transparent;
+    transition: color 0.1s;
+  }
+  .tab.active { color: var(--amber); border-bottom-color: var(--amber); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  .tab-content { display: none; flex: 1; overflow-y: auto; padding: 12px; }
+  .tab-content.active { display: flex; flex-direction: column; gap: 10px; }
+
+  /* scrollbar */
+  .tab-content::-webkit-scrollbar { width: 4px; }
+  .tab-content::-webkit-scrollbar-track { background: var(--bg); }
+  .tab-content::-webkit-scrollbar-thumb { background: var(--border); }
+
+  /* form fields */
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  .field input, .field textarea, .field select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    padding: 5px 7px;
+    outline: none;
+    transition: border-color 0.1s;
+    width: 100%;
+  }
+  .field input:focus, .field textarea:focus {
+    border-color: var(--amber);
+  }
+  .field textarea { resize: vertical; min-height: 60px; }
+
+  .field-row { display: flex; gap: 8px; }
+  .field-row .field { flex: 1; }
+
+  .section-title {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--amber);
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2px;
+  }
+
+  /* item list */
+  .item-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.1s;
+  }
+  .item-row:hover { border-color: var(--dim); }
+  .item-row.selected { border-color: var(--amber); background: rgba(200,120,32,0.06); }
+  .item-row .item-thumb {
+    width: 28px; height: 28px;
+    background: rgba(200,120,32,0.08);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+    overflow: hidden;
+  }
+  .item-row .item-thumb img { width: 100%; height: 100%; object-fit: contain; }
+  .item-row .item-info { flex: 1; overflow: hidden; }
+  .item-row .item-name { font-size: 11px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item-row .item-pos { font-size: 9px; color: var(--dim); margin-top: 1px; }
+  .item-row .item-del {
+    background: none; border: none; color: var(--dim);
+    cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1;
+    flex-shrink: 0;
+  }
+  .item-row .item-del:hover { color: var(--red); }
+
+  /* image list in project tab */
+  .img-list { display: flex; flex-direction: column; gap: 4px; }
+  .img-entry {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg); border: 1px solid var(--border); padding: 4px 6px;
+  }
+  .img-entry span { flex: 1; font-size: 10px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .img-entry button { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 12px; }
+  .img-entry button:hover { color: var(--red); }
+
+  /* output area */
+  #output-area {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 10px;
+    font-size: 10px;
+    line-height: 1.5;
+    color: var(--green);
+    white-space: pre-wrap;
+    overflow-y: auto;
+    max-height: 300px;
+    font-family: 'Courier New', monospace;
+  }
+
+  .notice {
+    font-size: 10px;
+    color: var(--dim);
+    line-height: 1.6;
+    padding: 8px;
+    border: 1px solid var(--border);
+    background: rgba(0,0,0,0.3);
+  }
+  .notice strong { color: var(--amber); }
+
+  /* resize handle */
+  .resize-handle {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    width: 12px;
+    height: 12px;
+    background: var(--amber);
+    border: 1px solid #000;
+    cursor: nwse-resize;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  .desk-item:hover .resize-handle,
+  .desk-item.selected .resize-handle { opacity: 1; }
+
+  /* drag-over highlight for file drop */
+  #canvas-wrap.dragover #desk-bg { opacity: 0.5; }
+  #canvas-wrap.dragover::after {
+    content: 'Drop image to place on desk';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: var(--amber);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>Stan's World ▸ Desk Editor</h1>
+  <span class="sep">|</span>
+  <button class="btn" id="btn-add">+ New Item</button>
+  <button class="btn primary" id="btn-export">Export Config</button>
+  <button class="btn" id="btn-clear">Clear All</button>
+  <span id="hint">Drag items to reposition ✦ Drop image files onto desk</span>
+</div>
+
+<div id="main">
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <div id="desk-bg"></div>
+    <div id="canvas-overlay"></div>
+    <div id="pos-readout">x: — y: —</div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="panel">
+    <div id="panel-tabs">
+      <div class="tab active" data-tab="items">Items</div>
+      <div class="tab" data-tab="edit">Edit</div>
+      <div class="tab" data-tab="settings">Site</div>
+      <div class="tab" data-tab="export">Export</div>
+    </div>
+
+    <!-- ITEMS TAB -->
+    <div class="tab-content active" id="tab-items">
+      <div class="section-title">Desk Objects</div>
+      <div id="item-list">
+        <div class="notice">No items yet.<br><strong>+ New Item</strong> to add one, or drop an image file onto the desk.</div>
+      </div>
+      <button class="btn" id="btn-add2" style="margin-top:auto">+ New Item</button>
+    </div>
+
+    <!-- EDIT TAB -->
+    <div class="tab-content" id="tab-edit">
+      <div id="edit-empty" class="notice">Select an item on the desk or in the list to edit it.</div>
+      <div id="edit-form" style="display:none; flex-direction:column; gap:10px;">
+
+        <div class="section-title">Identity</div>
+        <div class="field"><label>ID (no spaces)</label><input id="f-id" placeholder="my-project"></div>
+        <div class="field"><label>Hover Label</label><input id="f-label" placeholder="My Project"></div>
+
+        <div class="section-title">Position &amp; Size</div>
+        <div class="field-row">
+          <div class="field"><label>Left %</label><input id="f-left" type="number" min="0" max="100" step="0.5"></div>
+          <div class="field"><label>Top %</label><input id="f-top" type="number" min="0" max="100" step="0.5"></div>
+        </div>
+        <div class="field"><label>Width %</label><input id="f-width" type="number" min="1" max="40" step="0.5" value="10"></div>
+        <div class="field"><label>Object Image (filename)</label><input id="f-imgsrc" placeholder="myobject.png"></div>
+
+        <div class="section-title">↓ Popup Window Content</div>
+        <div class="notice" style="font-size:9px; padding:5px 7px; margin-bottom:2px;">This is what shows inside the window when clicked on your site.</div>
+        <div class="field"><label>Window Title</label><input id="f-title" placeholder="My Project"></div>
+        <div class="field"><label>Description</label><textarea id="f-desc" placeholder="Describe the project..." style="min-height:80px;"></textarea></div>
+
+        <div class="section-title">Window Images <span style="color:var(--dim);font-size:9px;letter-spacing:0">(filenames in your repo)</span></div>
+        <div class="img-list" id="img-list"></div>
+        <div class="field-row">
+          <div class="field"><input id="f-newimg" placeholder="photo.jpg"></div>
+          <button class="btn" id="btn-addimg">+ Add</button>
+        </div>
+
+        <div class="section-title">Link Button</div>
+        <div class="field"><label>URL</label><input id="f-link" placeholder="https://..."></div>
+        <div class="field"><label>Button Text</label><input id="f-linktext" placeholder="View Project"></div>
+
+        <div style="display:flex; gap:8px; margin-top:4px;">
+          <button class="btn primary" id="btn-save" style="flex:1">Save Changes</button>
+          <button class="btn danger" id="btn-delete">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div class="tab-content" id="tab-settings">
+      <div class="section-title">Background Image</div>
+      <div class="notice">Filename of the desk background image.<br>Replace <strong>Desk_Image.png</strong> with your new file — upload the new file to GitHub alongside index.html.</div>
+      <div class="field" style="margin-top:6px">
+        <label>Background Image Filename</label>
+        <input id="s-bg" value="Desk_Image.png" placeholder="Desk_Image.png">
+      </div>
+      <div id="bg-preview" style="margin-top:8px; width:100%; height:80px; background:center/cover no-repeat #111; border:1px solid var(--border); font-size:9px; color:var(--dim); display:flex; align-items:center; justify-content:center;">
+        preview
+      </div>
+      <div class="section-title" style="margin-top:10px">Page Title</div>
+      <div class="field">
+        <label>Browser Tab Title</label>
+        <input id="s-title" value="Stanley's Desk" placeholder="Stanley's Desk">
+      </div>
+      <button class="btn primary" id="btn-save-settings" style="margin-top:8px">Apply Site Settings</button>
+      <div id="settings-result" style="font-size:10px; color:var(--dim); min-height:14px; margin-top:4px;"></div>
+    </div>
+
+    <!-- EXPORT TAB -->
+    <div class="tab-content" id="tab-export">
+      <div id="server-status" class="notice" style="border-color:var(--dim)">
+        Checking for local server...
+      </div>
+
+      <!-- When server is running -->
+      <div id="export-server" style="display:none; flex-direction:column; gap:8px;">
+        <div class="section-title">Auto-Save</div>
+        <div class="notice" style="border-color:var(--green); color:var(--green)">
+          ✓ Local server running — changes save directly to index.html
+        </div>
+        <button class="btn primary" id="btn-save-direct" style="font-size:12px; padding:8px;">
+          ⬇ Save to index.html
+        </button>
+        <div id="save-result" style="font-size:10px; color:var(--dim); min-height:16px;"></div>
+        <div class="section-title">Then push to GitHub</div>
+        <div class="notice">After saving, run:<br><strong style="color:var(--amber)">git add -A && git commit -m "update" && git push</strong><br>in your terminal to publish.</div>
+      </div>
+
+      <!-- When server is NOT running (fallback) -->
+      <div id="export-manual" style="display:none; flex-direction:column; gap:8px;">
+        <div class="section-title">Start the server for auto-save</div>
+        <div class="notice">
+          Run in Terminal:<br>
+          <strong style="color:var(--amber)">node server.js</strong><br><br>
+          Then open <strong>http://localhost:3000/editor.html</strong><br><br>
+          — or manually copy below —
+        </div>
+        <div class="section-title">Manual Copy</div>
+        <div id="output-area">// Click "Export Config" to generate</div>
+        <button class="btn" id="btn-copy" style="margin-top:4px">Copy to Clipboard</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
+let projects   = [];   // array of project objects
+let selectedId = null;
+let dragState   = null; // single shared drag state — avoids listener stacking
+let resizeState = null; // single shared resize state
+
+function uid() {
+  return 'item-' + Math.random().toString(36).slice(2, 7);
+}
+
+function getSelected() {
+  return projects.find(p => p.id === selectedId);
+}
+
+// ════════════════════════════════════════
+// CANVAS ITEM RENDERING
+// ════════════════════════════════════════
+const canvasWrap = document.getElementById('canvas-wrap');
+const posReadout = document.getElementById('pos-readout');
+
+function pct(px, total) {
+  return Math.max(0, Math.min(100, (px / total) * 100));
+}
+
+function makeItemEl(p) {
+  const el = document.createElement('div');
+  el.className = 'desk-item' + (p.id === selectedId ? ' selected' : '');
+  el.dataset.id = p.id;
+  el.style.left  = p.left  + '%';
+  el.style.top   = p.top   + '%';
+  el.style.width = p.width + '%';
+
+  const lbl = document.createElement('div');
+  lbl.className = 'item-label';
+  lbl.textContent = p.label || p.id;
+  el.appendChild(lbl);
+
+  if (p.imageSrc) {
+    const img = document.createElement('img');
+    img.src = p.imageSrc;
+    img.draggable = false;
+    el.appendChild(img);
+  } else {
+    const ph = document.createElement('div');
+    ph.className = 'placeholder';
+    ph.textContent = p.label || 'No image';
+    el.appendChild(ph);
+  }
+
+  // Resize handle
+  const handle = document.createElement('div');
+  handle.className = 'resize-handle';
+  handle.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation(); // don't trigger drag
+    selectItem(p.id);
+    resizeState = { p, el, lastX: e.clientX };
+  });
+  el.appendChild(handle);
+
+  el.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    selectItem(p.id);
+    dragState = { p, el, lastX: e.clientX, lastY: e.clientY };
+    el.style.cursor = 'grabbing';
+  });
+
+  return el;
+}
+
+function renderItems() {
+  // Remove elements for deleted projects
+  canvasWrap.querySelectorAll('.desk-item').forEach(el => {
+    if (!projects.find(p => p.id === el.dataset.id)) el.remove();
+  });
+
+  projects.forEach(p => {
+    let el = canvasWrap.querySelector(`.desk-item[data-id="${p.id}"]`);
+    if (!el) {
+      // New project — create element
+      el = makeItemEl(p);
+      canvasWrap.appendChild(el);
+    } else {
+      // Existing element — update position/size/label/image without recreating
+      el.style.left  = p.left  + '%';
+      el.style.top   = p.top   + '%';
+      el.style.width = p.width + '%';
+      el.classList.toggle('selected', p.id === selectedId);
+      const lbl = el.querySelector('.item-label');
+      if (lbl) lbl.textContent = p.label || p.id;
+      // Update image src if changed
+      const img = el.querySelector('img');
+      if (img && p.imageSrc && img.src !== p.imageSrc) img.src = p.imageSrc;
+    }
+  });
+}
+
+function renderItemList() {
+  const list = document.getElementById('item-list');
+  if (projects.length === 0) {
+    list.innerHTML = '<div class="notice">No items yet.<br><strong>+ New Item</strong> to add one, or drop an image onto the desk.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  projects.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'item-row' + (p.id === selectedId ? ' selected' : '');
+    row.dataset.id = p.id;
+    row.innerHTML = `
+      <div class="item-thumb">${p.imageSrc ? `<img src="${p.imageSrc}">` : '📦'}</div>
+      <div class="item-info">
+        <div class="item-name">${p.label || p.id}</div>
+        <div class="item-pos">left:${p.left}% top:${p.top}% w:${p.width}%</div>
+      </div>
+      <button class="item-del" title="Delete">×</button>
+    `;
+    row.querySelector('.item-del').addEventListener('click', e => {
+      e.stopPropagation();
+      deleteItem(p.id);
+    });
+    row.addEventListener('click', () => selectItem(p.id));
+    list.appendChild(row);
+  });
+}
+
+// ════════════════════════════════════════
+// SELECTION + EDIT FORM
+// ════════════════════════════════════════
+function selectItem(id) {
+  selectedId = id;
+  // Update selection highlight in-place — don't re-render or the dragged
+  // element gets destroyed mid-drag and dragState points to a dead node
+  document.querySelectorAll('.desk-item').forEach(el => {
+    el.classList.toggle('selected', el.dataset.id === id);
+  });
+  document.querySelectorAll('.item-row').forEach(row => {
+    row.classList.toggle('selected', row.dataset.id === id);
+  });
+  showEditForm();
+  switchTab('edit');
+}
+
+function showEditForm() {
+  const p = getSelected();
+  document.getElementById('edit-empty').style.display = p ? 'none' : 'block';
+  const form = document.getElementById('edit-form');
+  form.style.display = p ? 'flex' : 'none';
+  if (!p) return;
+
+  document.getElementById('f-id').value       = p.id;
+  document.getElementById('f-label').value    = p.label    || '';
+  document.getElementById('f-left').value     = p.left;
+  document.getElementById('f-top').value      = p.top;
+  document.getElementById('f-width').value    = p.width    || 10;
+  document.getElementById('f-imgsrc').value   = p.imageSrc || '';
+  document.getElementById('f-title').value    = p.title    || '';
+  document.getElementById('f-desc').value     = p.description || '';
+  document.getElementById('f-link').value     = p.link     || '';
+  document.getElementById('f-linktext').value = p.linkText || 'View Project';
+
+  // Images list
+  renderImgList(p);
+}
+
+function renderImgList(p) {
+  const list = document.getElementById('img-list');
+  list.innerHTML = '';
+  (p.images || []).forEach((src, i) => {
+    const row = document.createElement('div');
+    row.className = 'img-entry';
+    row.innerHTML = `<span>${src}</span><button title="Remove">×</button>`;
+    row.querySelector('button').addEventListener('click', () => {
+      p.images.splice(i, 1);
+      renderImgList(p);
+    });
+    list.appendChild(row);
+  });
+}
+
+document.getElementById('btn-addimg').addEventListener('click', () => {
+  const p = getSelected(); if (!p) return;
+  const val = document.getElementById('f-newimg').value.trim();
+  if (!val) return;
+  if (!p.images) p.images = [];
+  p.images.push(val);
+  document.getElementById('f-newimg').value = '';
+  renderImgList(p);
+});
+
+document.getElementById('btn-save').addEventListener('click', () => {
+  const p = getSelected(); if (!p) return;
+  const newId = document.getElementById('f-id').value.trim() || p.id;
+  p.id          = newId;
+  selectedId    = newId;
+  p.label       = document.getElementById('f-label').value.trim();
+  p.left        = parseFloat(document.getElementById('f-left').value)  || p.left;
+  p.top         = parseFloat(document.getElementById('f-top').value)   || p.top;
+  p.width       = parseFloat(document.getElementById('f-width').value) || 10;
+  p.imageSrc    = document.getElementById('f-imgsrc').value.trim();
+  p.title       = document.getElementById('f-title').value.trim();
+  p.description = document.getElementById('f-desc').value.trim();
+  p.link        = document.getElementById('f-link').value.trim();
+  p.linkText    = document.getElementById('f-linktext').value.trim() || 'View Project';
+  renderItems();
+  renderItemList();
+  // flash saved
+  const btn = document.getElementById('btn-save');
+  btn.textContent = 'Saved ✓';
+  btn.style.borderColor = 'var(--green)';
+  btn.style.color = 'var(--green)';
+  setTimeout(() => { btn.textContent = 'Save Changes'; btn.style.borderColor = ''; btn.style.color = ''; }, 1200);
+});
+
+document.getElementById('btn-delete').addEventListener('click', () => {
+  const p = getSelected(); if (!p) return;
+  if (!confirm(`Delete "${p.label || p.id}"?`)) return;
+  deleteItem(p.id);
+});
+
+function deleteItem(id) {
+  projects = projects.filter(p => p.id !== id);
+  if (selectedId === id) {
+    selectedId = null;
+    showEditForm();
+  }
+  renderItems();
+  renderItemList();
+}
+
+// ════════════════════════════════════════
+// ADD NEW ITEM
+// ════════════════════════════════════════
+function addNewItem(opts = {}) {
+  const id = uid();
+  const p = {
+    id,
+    label:       opts.label       || 'New Item',
+    left:        opts.left        ?? 45,
+    top:         opts.top         ?? 55,
+    width:       opts.width       ?? 10,
+    imageSrc:    opts.imageSrc    || '',
+    title:       opts.title       || 'New Project',
+    description: opts.description || 'Add a description...',
+    images:      opts.images      || [],
+    link:        opts.link        || '',
+    linkText:    opts.linkText    || 'View Project',
+  };
+  projects.push(p);
+  selectItem(id);
+  renderItems();
+  renderItemList();
+  return p;
+}
+
+document.getElementById('btn-add').addEventListener('click',  () => addNewItem());
+document.getElementById('btn-add2').addEventListener('click', () => addNewItem());
+document.getElementById('btn-clear').addEventListener('click', () => {
+  if (projects.length && !confirm('Clear all items?')) return;
+  projects = [];
+  selectedId = null;
+  renderItems();
+  renderItemList();
+  showEditForm();
+});
+
+// ════════════════════════════════════════
+// DRAG IMAGE FILES ONTO DESK
+// ════════════════════════════════════════
+canvasWrap.addEventListener('dragover', e => {
+  e.preventDefault();
+  canvasWrap.classList.add('dragover');
+});
+canvasWrap.addEventListener('dragleave', () => {
+  canvasWrap.classList.remove('dragover');
+});
+canvasWrap.addEventListener('drop', e => {
+  e.preventDefault();
+  canvasWrap.classList.remove('dragover');
+
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+  if (!files.length) return;
+
+  // Get drop position as % of canvas
+  const rect  = canvasWrap.getBoundingClientRect();
+  const dropL = pct(e.clientX - rect.left, rect.width);
+  const dropT = pct(e.clientY - rect.top,  rect.height);
+
+  files.forEach((file, i) => {
+    const url = URL.createObjectURL(file);
+    const name = file.name.replace(/\.[^.]+$/, ''); // strip extension
+    const p = addNewItem({
+      label:    name,
+      title:    name,
+      imageSrc: file.name,  // store filename — user copies file to GitHub
+      left:     Math.round((dropL + i * 4) * 10) / 10,
+      top:      Math.round(dropT * 10) / 10,
+    });
+    // Show preview using object URL temporarily
+    const el = canvasWrap.querySelector(`[data-id="${p.id}"] img`);
+    if (el) el.src = url;
+
+    // Show instructions
+    showDropInstructions(file.name);
+  });
+});
+
+function showDropInstructions(filename) {
+  const area = document.getElementById('output-area');
+  switchTab('export');
+  area.textContent =
+`// Image dropped: ${filename}
+//
+// IMPORTANT: the editor shows a preview but
+// your actual site needs the file uploaded.
+//
+// Steps:
+// 1. Copy ${filename} to your GitHub repo folder
+//    (same folder as index.html)
+// 2. Export config and paste into index.html
+// 3. Commit + push both files`;
+}
+
+// ════════════════════════════════════════
+// EXPORT
+// ════════════════════════════════════════
+// ════════════════════════════════════════
+// SERVER DETECTION + DIRECT SAVE
+// ════════════════════════════════════════
+let serverAvailable = false;
+
+async function checkServer() {
+  try {
+    const r = await fetch('http://localhost:3000/editor.html', { method: 'HEAD', signal: AbortSignal.timeout(800) });
+    serverAvailable = r.ok;
+  } catch {
+    serverAvailable = false;
+  }
+  const status  = document.getElementById('server-status');
+  const withSrv = document.getElementById('export-server');
+  const noSrv   = document.getElementById('export-manual');
+  status.style.display = 'none';
+  if (serverAvailable) {
+    withSrv.style.display = 'flex';
+    noSrv.style.display   = 'none';
+  } else {
+    withSrv.style.display = 'none';
+    noSrv.style.display   = 'flex';
+  }
+}
+
+// Check on load and whenever export tab is opened
+checkServer();
+document.querySelectorAll('.tab').forEach(tab => {
+  if (tab.dataset.tab === 'export') {
+    tab.addEventListener('click', checkServer);
+  }
+});
+
+function buildProjectsArray() {
+  return projects.map(p => ({
+    id:          p.id,
+    label:       p.label,
+    left:        p.left  + '%',
+    top:         p.top   + '%',
+    width:       p.width + '%',
+    imageSrc:    p.imageSrc    || '',
+    title:       p.title       || '',
+    description: p.description || '',
+    images:      p.images      || [],
+    link:        p.link        || '',
+    linkText:    p.linkText    || 'View Project',
+  }));
+}
+
+// Also wire up the applyLoadedSettings call when index.html is dropped in
+const _origLoad = typeof applyLoadedSettings !== 'undefined' ? applyLoadedSettings : null;
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  checkServer().then(() => {
+    if (serverAvailable) {
+      switchTab('export');
+    } else {
+      const arr  = buildProjectsArray();
+      const json = JSON.stringify(arr, null, 2);
+      document.getElementById('output-area').textContent = json;
+      switchTab('export');
+    }
+  });
+});
+
+// Direct save button
+document.getElementById('btn-save-direct').addEventListener('click', async () => {
+  const btn    = document.getElementById('btn-save-direct');
+  const result = document.getElementById('save-result');
+  btn.textContent = 'Saving...';
+  btn.disabled    = true;
+  result.textContent = '';
+  result.style.color = 'var(--dim)';
+
+  try {
+    const arr = buildProjectsArray();
+    const res = await fetch('http://localhost:3000/save-projects', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ projects: arr, settings: siteSettings }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      result.textContent = `✓ Saved ${data.count} project(s) to index.html`;
+      result.style.color = 'var(--green)';
+      btn.textContent    = '⬇ Save to index.html';
+    } else {
+      result.textContent = '✗ ' + data.error;
+      result.style.color = 'var(--red)';
+      btn.textContent    = '⬇ Save to index.html';
+    }
+  } catch (err) {
+    result.textContent = '✗ Could not reach server — is node server.js running?';
+    result.style.color = 'var(--red)';
+    btn.textContent    = '⬇ Save to index.html';
+    serverAvailable    = false;
+    document.getElementById('export-server').style.display = 'none';
+    document.getElementById('export-manual').style.display = 'flex';
+  }
+  btn.disabled = false;
+});
+
+document.getElementById('btn-copy').addEventListener('click', () => {
+  const text = document.getElementById('output-area').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('btn-copy');
+    btn.textContent = 'Copied ✓';
+    setTimeout(() => { btn.textContent = 'Copy to Clipboard'; }, 1500);
+  });
+});
+
+// ════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
+}
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+});
+
+// ════════════════════════════════════════
+// SHARED DRAG — registered once, delta-based
+// ════════════════════════════════════════
+document.addEventListener('mousemove', e => {
+  const cw = canvasWrap.offsetWidth;
+  const ch = canvasWrap.offsetHeight;
+
+  if (dragState) {
+    const { p, el } = dragState;
+    const dx = ((e.clientX - dragState.lastX) / cw) * 100;
+    const dy = ((e.clientY - dragState.lastY) / ch) * 100;
+    dragState.lastX = e.clientX;
+    dragState.lastY = e.clientY;
+
+    p.left = Math.round(Math.max(0, Math.min(95, p.left + dx)) * 10) / 10;
+    p.top  = Math.round(Math.max(0, Math.min(95, p.top  + dy)) * 10) / 10;
+
+    el.style.left = p.left + '%';
+    el.style.top  = p.top  + '%';
+    posReadout.textContent = `left: ${p.left}%  top: ${p.top}%`;
+    document.getElementById('f-left').value = p.left;
+    document.getElementById('f-top').value  = p.top;
+  }
+
+  if (resizeState) {
+    const { p, el } = resizeState;
+    const dx = ((e.clientX - resizeState.lastX) / cw) * 100;
+    resizeState.lastX = e.clientX;
+
+    p.width = Math.round(Math.max(2, Math.min(60, p.width + dx)) * 10) / 10;
+    el.style.width = p.width + '%';
+    posReadout.textContent = `width: ${p.width}%`;
+    document.getElementById('f-width').value = p.width;
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (dragState) {
+    dragState.el.style.cursor = 'grab';
+    dragState = null;
+    renderItemList();
+  }
+  if (resizeState) {
+    resizeState = null;
+    renderItemList();
+  }
+});
+
+// ════════════════════════════════════════
+// MOUSE POSITION READOUT
+// ════════════════════════════════════════
+canvasWrap.addEventListener('mousemove', e => {
+  const r = canvasWrap.getBoundingClientRect();
+  const l = pct(e.clientX - r.left, r.width);
+  const t = pct(e.clientY - r.top,  r.height);
+  posReadout.textContent = `left: ${Math.round(l*10)/10}%  top: ${Math.round(t*10)/10}%`;
+});
+
+// ════════════════════════════════════════
+// LOAD EXISTING PROJECTS FROM index.html
+// via file drop onto the editor itself
+// ════════════════════════════════════════
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  const files = Array.from(e.dataTransfer.files);
+  const html  = files.find(f => f.name.endsWith('.html'));
+  if (!html) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const src   = ev.target.result;
+    const match = src.match(/const PROJECTS\s*=\s*(\[[\s\S]*?\]);/);
+    if (!match) return alert('Could not find PROJECTS array in dropped HTML file.');
+    try {
+      const loaded = JSON.parse(match[1]);
+      loaded.forEach(p => {
+        // Strip % signs from left/top/width if present
+        p.left  = parseFloat(p.left)  || 45;
+        p.top   = parseFloat(p.top)   || 55;
+        p.width = parseFloat(p.width) || 10;
+        projects.push(p);
+      });
+      renderItems();
+      renderItemList();
+      alert(`Loaded ${loaded.length} project(s) from ${html.name}`);
+    } catch(err) {
+      alert('Could not parse PROJECTS array: ' + err.message);
+    }
+  };
+  reader.readAsText(html);
+});
+
+// ════════════════════════════════════════
+// SITE SETTINGS
+// ════════════════════════════════════════
+const siteSettings = { bg: 'Desk_Image.png', title: "Stanley's Desk" };
+
+// Load current values from index.html if dropped in
+function applyLoadedSettings(html) {
+  const bgMatch    = html.match(/background(?:-image)?:[^;]*url\(['"](.*?)['"]\)/);
+  const titleMatch = html.match(/<title>(.*?)<\/title>/);
+  if (bgMatch)    { siteSettings.bg    = bgMatch[1];    document.getElementById('s-bg').value    = bgMatch[1]; }
+  if (titleMatch) { siteSettings.title = titleMatch[1]; document.getElementById('s-title').value = titleMatch[1]; }
+  updateBgPreview();
+}
+
+function updateBgPreview() {
+  const prev = document.getElementById('bg-preview');
+  const val  = document.getElementById('s-bg').value.trim();
+  prev.style.backgroundImage = val ? `url('${val}')` : 'none';
+  prev.textContent = val ? '' : 'no image set';
+}
+
+document.getElementById('s-bg').addEventListener('input', updateBgPreview);
+
+document.getElementById('btn-save-settings').addEventListener('click', () => {
+  siteSettings.bg    = document.getElementById('s-bg').value.trim();
+  siteSettings.title = document.getElementById('s-title').value.trim();
+  // Also update the editor's own background preview
+  document.getElementById('desk-bg').style.backgroundImage = `url('${siteSettings.bg}')`;
+  const res = document.getElementById('settings-result');
+  res.textContent  = '✓ Settings applied — click Export to save to index.html';
+  res.style.color  = 'var(--green)';
+  setTimeout(() => { res.textContent = ''; }, 3000);
+});
+
+// Init
+renderItemList();
+showEditForm();
+updateBgPreview();
+</script>
+</body>
+</html>
