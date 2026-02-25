@@ -819,29 +819,105 @@ function openWindow(id, originEl) {
   });
 }
 
+function dissolveWindow(rect, titlebarH) {
+  // Cover the window area with a grid of small tiles.
+  // Each tile gets a random "death time" — when progress passes it,
+  // that tile drops out. Result: window appears to dissolve pixel by pixel.
+
+  const TILE      = 4;     // px per dissolve pixel — small and grainy
+  const DURATION  = 2200;  // ms total
+  const cols = Math.ceil(rect.width  / TILE);
+  const rows = Math.ceil(rect.height / TILE);
+
+  // Assign each tile a random dropout time (0..1) with slight spatial noise
+  // so adjacent tiles don't all die together — pure random looks most digital
+  const tiles = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const sx = rect.left + c * TILE;
+      const sy = rect.top  + r * TILE;
+
+      // Color: approximate what the window actually looks like in this region
+      // Title bar = near-black, content area = light gray/white
+      const inTitlebar = (sy - rect.top) < titlebarH;
+      const v = inTitlebar
+        ? Math.floor(Math.random() * 40)          // dark  0-40
+        : 180 + Math.floor(Math.random() * 75);   // light 180-255
+      const color = `rgb(${v},${v},${v})`;
+
+      tiles.push({
+        sx, sy,
+        color,
+        // Each tile dies at a uniformly random time across the full duration
+        // Small gaussian-ish nudge: average of 3 randoms = slightly clustered
+        // around midpoint but with full spread — feels organic not mechanical
+        deathT: (Math.random() + Math.random() + Math.random()) / 3,
+        alpha: 1,
+      });
+    }
+  }
+
+  const start = performance.now();
+
+  function drawFrame(now) {
+    const elapsed  = now - start;
+    const progress = Math.min(elapsed / DURATION, 1);
+
+    // Ease: slow start, accelerates — pixels start dropping slowly
+    // then it all falls apart quickly at the end
+    const ease = Math.pow(progress, 0.75);
+
+    zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
+
+    let anyAlive = false;
+    tiles.forEach(tile => {
+      // How far past this tile's death time are we?
+      if (ease >= tile.deathT) {
+        // Tile is dying — fade it out over a short window after its death time
+        const fadeRange = 0.08;
+        const fadeProgress = (ease - tile.deathT) / fadeRange;
+        tile.alpha = Math.max(0, 1 - fadeProgress);
+      }
+
+      if (tile.alpha <= 0) return;
+      anyAlive = true;
+
+      zoomCtx.globalAlpha = tile.alpha;
+      zoomCtx.fillStyle   = tile.color;
+      zoomCtx.fillRect(tile.sx, tile.sy, TILE, TILE);
+    });
+
+    zoomCtx.globalAlpha = 1;
+
+    if (anyAlive && progress < 1) {
+      requestAnimationFrame(drawFrame);
+    } else {
+      zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
+    }
+  }
+
+  requestAnimationFrame(drawFrame);
+}
+
 function closeWindow(id) {
   const win = document.getElementById('window-' + id);
   if (!win) return;
 
-  // Fade the actual window element so you see the real content dissolve.
-  // Transition duration matches the ghostly feel — slow and soft.
-  win.style.transition = 'opacity 1.7s ease-in';
-  win.style.opacity    = '0';
+  const rect      = win.getBoundingClientRect();
+  const titlebarH = win.querySelector('.mac-titlebar')?.offsetHeight || 20;
 
-  // After fade completes, clean up
-  setTimeout(() => {
-    win.style.transition = '';
-    win.style.opacity    = '';
-    win.style.display    = 'none';
-    win.style.left       = '';
-    win.style.top        = '';
-    win.style.transform  = '';
-    win.style.zIndex     = '';
-    win.classList.remove('active', 'closing');
-  }, 1750);
+  // Hide the real window immediately — canvas dissolve takes over
+  win.classList.remove('active', 'closing');
+  win.style.display    = 'none';
+  win.style.left       = '';
+  win.style.top        = '';
+  win.style.transform  = '';
+  win.style.zIndex     = '';
 
-  const anyOpen = Array.from(document.querySelectorAll('.mac-window.active'))
-    .some(w => w.id !== 'window-' + id);
+  // Run the pixel dissolve on the zoom canvas
+  dissolveWindow(rect, titlebarH);
+
+  const anyOpen = document.querySelectorAll('.mac-window.active').length > 0;
   if (!anyOpen) overlay.classList.remove('active');
 }
 
