@@ -705,19 +705,30 @@ function animateZoomRect(fromRect, toRect, onDone) {
 
     zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
 
-    // Draw marching-ants outline rectangle
-    // Outer black rect
+    const rx = Math.round(x), ry = Math.round(y);
+    const rw = Math.round(w), rh = Math.round(h);
+
+    // Soft fill — Mac gray tint that fades in as the rect grows.
+    // fillAlpha goes 0 → 0.18 over the animation so it feels like
+    // the window body is materialising behind the outline.
+    const fillAlpha = t * 0.18;
+    zoomCtx.globalAlpha = fillAlpha;
+    zoomCtx.fillStyle = '#c8c8c8';
+    zoomCtx.fillRect(rx, ry, rw, rh);
+    zoomCtx.globalAlpha = 1;
+
+    // Marching-ants outline — outer black
     zoomCtx.strokeStyle = '#000000';
     zoomCtx.lineWidth = 2;
     zoomCtx.setLineDash(DASH);
     zoomCtx.lineDashOffset = -dashOffset;
-    zoomCtx.strokeRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+    zoomCtx.strokeRect(rx, ry, rw, rh);
 
-    // Inner white rect offset by 2px — gives that double-outline pixel look
+    // Inner white offset — double-outline pixel look
     zoomCtx.strokeStyle = '#ffffff';
     zoomCtx.lineWidth = 1;
-    zoomCtx.lineDashOffset = -dashOffset - 4; // offset so white fills the black gaps
-    zoomCtx.strokeRect(Math.round(x)+1, Math.round(y)+1, Math.round(w)-2, Math.round(h)-2);
+    zoomCtx.lineDashOffset = -dashOffset - 4;
+    zoomCtx.strokeRect(rx + 1, ry + 1, rw - 2, rh - 2);
 
     zoomCtx.setLineDash([]); // reset
 
