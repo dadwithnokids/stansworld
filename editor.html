@@ -407,12 +407,30 @@
         <div class="section-title">↓ Popup Window Content</div>
         <div class="notice" style="font-size:9px; padding:5px 7px; margin-bottom:2px;">This is what shows inside the window when clicked on your site.</div>
         <div class="field"><label>Window Title</label><input id="f-title" placeholder="My Project"></div>
-        <div class="field"><label>Description</label><textarea id="f-desc" placeholder="Describe the project..." style="min-height:80px;"></textarea></div>
+        <div class="field">
+          <label>Description</label>
+          <textarea id="f-desc" placeholder="Describe the project..." style="min-height:100px;"></textarea>
+          <div style="font-size:9px; color:var(--dim); margin-top:3px; line-height:1.6;">
+            <span style="color:var(--amber)">**bold**</span> &nbsp;
+            <span style="color:var(--amber)">*italic*</span> &nbsp;
+            <span style="color:var(--amber)">[link text](https://url.com)</span> &nbsp;
+            blank line = new paragraph
+          </div>
+        </div>
 
         <div class="section-title">Window Images <span style="color:var(--dim);font-size:9px;letter-spacing:0">(filenames in your repo)</span></div>
+        <div class="notice" style="font-size:9px;padding:4px 6px;">For clickable links in description use: <strong style="color:var(--amber)">[link text](https://url.com)</strong></div>
         <div class="img-list" id="img-list"></div>
-        <div class="field-row">
-          <div class="field"><input id="f-newimg" placeholder="photo.jpg"></div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <div class="field" style="flex:1"><input id="f-newimg" placeholder="photo.jpg"></div>
+          <select id="f-newimg-layout" style="background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:10px;padding:5px 4px;cursor:pointer;">
+            <option value="full">Full width</option>
+            <option value="half">Half width</option>
+            <option value="third">Third width</option>
+            <option value="left">Float left</option>
+            <option value="right">Float right</option>
+            <option value="row">Side-by-side row</option>
+          </select>
           <button class="btn" id="btn-addimg">+ Add</button>
         </div>
 
@@ -658,10 +676,25 @@ function showEditForm() {
 function renderImgList(p) {
   const list = document.getElementById('img-list');
   list.innerHTML = '';
-  (p.images || []).forEach((src, i) => {
+  (p.images || []).forEach((raw, i) => {
+    const [src, layout = 'full'] = raw.split('|');
     const row = document.createElement('div');
     row.className = 'img-entry';
-    row.innerHTML = `<span>${src}</span><button title="Remove">×</button>`;
+    row.style.cssText = 'display:flex;gap:6px;align-items:center;padding:4px 6px;background:var(--bg);border:1px solid var(--border);margin-bottom:3px;';
+    row.innerHTML = `
+      <span style="flex:1;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${src}">${src}</span>
+      <select style="background:var(--bg);border:1px solid var(--border);color:var(--amber);font-family:monospace;font-size:9px;padding:2px;cursor:pointer;">
+        ${['full','half','third','left','right','row'].map(l =>
+          `<option value="${l}" ${l===layout?'selected':''}>${l}</option>`
+        ).join('')}
+      </select>
+      <button style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px;padding:0 2px;" title="Remove">×</button>
+    `;
+    // Layout change
+    row.querySelector('select').addEventListener('change', e => {
+      p.images[i] = src + '|' + e.target.value;
+    });
+    // Delete
     row.querySelector('button').addEventListener('click', () => {
       p.images.splice(i, 1);
       renderImgList(p);
@@ -671,11 +704,12 @@ function renderImgList(p) {
 }
 
 document.getElementById('btn-addimg').addEventListener('click', () => {
-  const p = getSelected(); if (!p) return;
-  const val = document.getElementById('f-newimg').value.trim();
+  const p      = getSelected(); if (!p) return;
+  const val    = document.getElementById('f-newimg').value.trim();
+  const layout = document.getElementById('f-newimg-layout').value;
   if (!val) return;
   if (!p.images) p.images = [];
-  p.images.push(val);
+  p.images.push(layout === 'full' ? val : val + '|' + layout);
   document.getElementById('f-newimg').value = '';
   renderImgList(p);
 });

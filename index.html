@@ -894,10 +894,26 @@ function buildProjectFromConfig(project) {
   // Clear floats after images
   if (imgHTML) imgHTML += '<div class="img-clear"></div>';
 
-  // Parse description: convert [link text](url) → clickable links
-  const descHTML = (project.description || '')
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
-      '<a class="desc-link" href="$2" target="_blank" rel="noopener">$1</a>');
+  // Parse description — supports:
+  //   [link text](url)   → hyperlink
+  //   **bold**           → bold
+  //   *italic*           → italic
+  //   blank line         → new paragraph
+  function parseDesc(raw) {
+    return (raw || '')
+      .split(/\n\s*\n/)               // split on blank lines → paragraphs
+      .map(para => para
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
+          '<a class="desc-link" href="$2" target="_blank" rel="noopener">$1</a>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+?)\*/g,    '<em>$1</em>')
+        .replace(/\n/g, '<br>')
+      )
+      .map(para => `<p>${para}</p>`)
+      .join('');
+  }
+
+  const descHTML = parseDesc(project.description);
 
   win.innerHTML = `
     <div class="mac-titlebar" data-window="${project.id}">
@@ -911,7 +927,7 @@ function buildProjectFromConfig(project) {
     <div class="mac-content">
       <h2>${project.title}</h2>
       ${imgHTML}
-      <p>${descHTML}</p>
+      ${descHTML}
     </div>
     <div class="mac-footer">
       <span style="font-size:10px;color:#666;">Stanley's Desk © 2024</span>
