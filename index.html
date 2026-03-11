@@ -69,18 +69,7 @@
     width: 7%;
     pointer-events: none;
     z-index: 1;
-    transform-origin: center center;
-  }
-  @keyframes tv-wiggle {
-    0%   { transform: rotate(0deg)    scale(1);    }
-    20%  { transform: rotate(-1.5deg) scale(1.03); }
-    40%  { transform: rotate(1.5deg)  scale(1.03); }
-    60%  { transform: rotate(-1deg)   scale(1.02); }
-    80%  { transform: rotate(1deg)    scale(1.02); }
-    100% { transform: rotate(0deg)    scale(1);    }
-  }
-  #tv-gif.wiggling {
-    animation: tv-wiggle 0.45s ease;
+    transform: rotate(-1deg);
   }
 
   /* Subtle vignette to deepen edges */
@@ -303,229 +292,31 @@
   }
   .mac-content a.desc-link:hover { background: var(--mac-black); color: var(--mac-white); }
 
-  /* ── Photo grid ── */
-  .photo-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 3px;
-    margin: 10px 0 0 0;
-  }
-  .photo-grid .pg-item {
-    aspect-ratio: 1 / 1;
-    overflow: hidden;
-    cursor: pointer;
-    border: 1px solid var(--mac-dark);
-    background: #111;
-    position: relative;
-  }
-  .photo-grid .pg-item img {
-    width: 100%; height: 100%;
-    object-fit: cover;
-    display: block;
-    margin: 0; border: none;
-    transition: opacity .1s;
-  }
-  .photo-grid .pg-item:hover img { opacity: .85; }
-  .photo-grid .pg-item::after {
-    content: '⊕';
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; color: #fff;
-    opacity: 0; background: rgba(0,0,0,.3);
-    transition: opacity .15s;
-  }
-  .photo-grid .pg-item:hover::after { opacity: 1; }
-
-  /* ── Lightbox ── */
-  /* ── AIM-style lightbox ── */
-  #lightbox {
-    display: none;
-    position: fixed; inset: 0; z-index: 9999;
-    background: rgba(0,0,0,.55);
-    align-items: center; justify-content: center;
-  }
-  #lightbox.open { display: flex; }
-
-  #lb-window {
-    width: 520px;
-    background: #d4d0c8;
-    border-top: 2px solid #fff;
-    border-left: 2px solid #fff;
-    border-right: 2px solid #404040;
-    border-bottom: 2px solid #404040;
-    box-shadow: 2px 2px 0 #000, inset 1px 1px 0 #e8e4dc;
-    font-family: 'Tahoma', 'Arial', sans-serif;
-    user-select: none;
-  }
-
-  /* Title bar */
-  #lb-titlebar {
-    background: linear-gradient(to bottom, #003087 0%, #0050c8 40%, #0040a0 100%);
-    padding: 3px 4px;
-    display: flex; align-items: center; gap: 4px;
-    border-bottom: 1px solid #001a60;
-  }
-  #lb-titlebar .aim-icon {
-    width: 16px; height: 16px; flex-shrink: 0;
-    background: #ffcc00;
-    border-radius: 50%;
-    border: 1px solid #cc9900;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 10px; line-height: 1; color: #000;
-    font-weight: bold;
-  }
-  #lb-titlebar .aim-title {
-    flex: 1;
-    color: #fff;
-    font-size: 11px;
-    font-weight: bold;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-shadow: 1px 1px 0 rgba(0,0,0,.5);
-  }
-  /* Win98-style close button */
-  #lb-close {
-    width: 16px; height: 14px;
-    background: linear-gradient(to bottom, #e8e4dc, #c0bdb4);
-    border-top: 1px solid #fff;
-    border-left: 1px solid #fff;
-    border-right: 1px solid #404040;
-    border-bottom: 1px solid #404040;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 10px; font-weight: bold; color: #000;
-    cursor: pointer; flex-shrink: 0;
-    font-family: 'Tahoma', sans-serif;
-    line-height: 1;
-  }
-  #lb-close:hover { background: linear-gradient(to bottom, #e05050, #c03030); color: #fff; }
-  #lb-close:active { border-top:1px solid #404040; border-left:1px solid #404040; border-right:1px solid #fff; border-bottom:1px solid #fff; }
-
-  /* Menu bar */
-  #lb-menubar {
-    background: #d4d0c8;
-    border-bottom: 1px solid #808080;
-    padding: 1px 4px;
-    display: flex; gap: 0;
-    font-size: 11px; color: #000;
-  }
-  #lb-menubar span {
-    padding: 2px 8px;
-    cursor: default;
-  }
-  #lb-menubar span:hover { background: #0050c8; color: #fff; }
-
-  /* Buddy icon + screen name bar */
-  #lb-userbar {
-    background: linear-gradient(to right, #e8f4ff, #cce4ff);
-    border-bottom: 2px solid #a0b8d0;
-    padding: 5px 8px;
-    display: flex; align-items: center; gap: 8px;
-    font-size: 11px;
-  }
-  #lb-buddy-icon {
-    width: 32px; height: 32px; flex-shrink: 0;
-    background: #ffcc00;
-    border: 2px solid #cc9900;
-    border-radius: 3px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px;
-  }
-  #lb-screenname {
-    font-weight: bold; font-size: 12px; color: #003087;
-  }
-  #lb-status { font-size: 10px; color: #555; }
-
-  /* Photo area */
-  #lb-photo-area {
-    background: #fff;
-    margin: 6px;
-    border-top: 1px solid #808080;
-    border-left: 1px solid #808080;
-    border-right: 1px solid #dfdfdf;
-    border-bottom: 1px solid #dfdfdf;
-    display: flex; align-items: center; justify-content: center;
-    overflow: hidden;
-    height: 340px;
-    position: relative;
-  }
-  #lb-img {
-    max-width: 100%; max-height: 100%;
-    object-fit: contain;
-    display: block;
-  }
-  /* Prev/next as AIM-style buttons inside */
-  #lb-prev, #lb-next {
-    position: absolute; top: 50%; transform: translateY(-50%);
-    background: rgba(212,208,200,.85);
-    border-top: 1px solid #fff;
-    border-left: 1px solid #fff;
-    border-right: 1px solid #404040;
-    border-bottom: 1px solid #404040;
-    color: #000; font-size: 14px; font-weight: bold;
-    padding: 6px 10px; cursor: pointer;
-    font-family: 'Tahoma', sans-serif;
-  }
-  #lb-prev { left: 4px; }
-  #lb-next { right: 4px; }
-  #lb-prev:hover, #lb-next:hover { background: rgba(180,176,168,.95); }
-  #lb-prev:active, #lb-next:active {
-    border-top:1px solid #404040; border-left:1px solid #404040;
-    border-right:1px solid #fff; border-bottom:1px solid #fff;
-  }
-
-  /* Bottom bar */
-  #lb-bottombar {
-    background: #d4d0c8;
-    border-top: 1px solid #808080;
-    padding: 4px 8px;
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: 10px; color: #444;
-  }
-  #lb-counter { font-family: 'Tahoma', sans-serif; }
-  #lb-bottombar .aim-away {
-    color: #888; font-style: italic;
-  }
-
   /* Bottom bar */
   .mac-footer {
-    padding: 8px 12px;
-    border-top: 2px solid var(--mac-dark);
+    padding: 6px 10px;
+    border-top: 1px solid var(--mac-dark);
     display: flex;
     align-items: center;
     justify-content: space-between;
     background: var(--mac-gray);
-    min-height: 42px;
   }
   .mac-link {
     color: var(--mac-black);
-    text-decoration: none;
+    text-decoration: underline;
     cursor: pointer;
-    font-size: 12px;
-    font-weight: bold;
-    letter-spacing: 0.5px;
-    padding: 5px 14px;
+    font-size: 11px;
+    padding: 2px 6px;
     background: var(--mac-gray);
-    border-top: 2px solid var(--mac-white);
-    border-left: 2px solid var(--mac-white);
-    border-right: 2px solid var(--mac-darker);
-    border-bottom: 2px solid var(--mac-darker);
-    box-shadow: inset 1px 1px 0 #e8e4dc, 1px 1px 0 rgba(0,0,0,.3);
+    border: 1px solid var(--mac-black);
+    box-shadow: inset 1px 1px 0 var(--mac-white), 1px 1px 0 var(--mac-darker);
   }
   .mac-link:hover {
     background: var(--mac-black);
     color: var(--mac-white);
-    border-top-color: #555;
-    border-left-color: #555;
-    border-right-color: var(--mac-white);
-    border-bottom-color: var(--mac-white);
   }
   .mac-link:active {
-    border-top: 2px solid var(--mac-darker);
-    border-left: 2px solid var(--mac-darker);
-    border-right: 2px solid var(--mac-white);
-    border-bottom: 2px solid var(--mac-white);
-    box-shadow: none;
+    box-shadow: inset 1px 1px 0 var(--mac-darker);
   }
 
   /* Scrollbar styling */
@@ -1067,9 +858,9 @@ const PROJECTS = [
   {
     "id": "wcj-project",
     "label": "Weather Channel Jazz",
-    "left": "63.5%",
-    "top": "62.0%",
-    "width": "12%",
+    "left": "62.5%",
+    "top": "59.5%",
+    "width": "13%",
     "imageSrc": "tv-hotspot.png",
     "title": "Weather Channel Jazz",
     "description": "My good friend Scott was part of a jazz band that played at a local bar here in Louisville called The Whirling Tiger every Wednesday night. Aly and I don't go out much, but we tried to make it up every week to see them. One night I had an idea while we were up there and  approached them asking if they would let me produce a night. They were maybe a bit confused at first, but they said \"alright, we'll allow it!\"\n\nMost of my ideas come from creating modern experiences inside nostalgic worlds. I love taking things from the past, forgotten or flat out ignored, and bringing new life into them. The most enjoyable creative vehicle for me is immersion. It's not just for the thrill of it, it's one of the only ways I've ever felt truly satisfied with a project on my mind. I struggle pitching ideas, finding the words to say what I want, how I want something to land.  All my life I've found myself abandoning ideas and sometimes falling into depression over feeling misunderstood when I simply can\u2019t find the words\u2026It\u2019s like I\u2019m trying to speak a language that I don\u2019t understand. The only way out I've found is to just make the thing in a closed room and show people afterwards.\n\n**The Idea:** \n\nThere's a small, niche group of people online who find the old Weather Channel from the 80s and 90s to be almost meditative. You can find hours of [old VHS recordings on YouTube](https://www.youtube.com/watch?v=pbw85r5pa_Q&t=8129s), grainy and squiggly, with a comforting professional voice giving updates, old commercials, and incredibly smooth jazz playing over everything. I wanted to create an evening at this bar that made everyone feel that warm, hard-to-put-your-finger-on sensation those videos give you. Part of it is nostalgia, but then why do younger Gen Z kids love this stuff?? How can they be nostalgic for something they've never seen?\n\nI started drawing a map on a napkin. The space was a long wide rectangle, and I knew where the band positioned themselves, so I built everything around that. Two mid-size black 90s CRT TVs, one on each side of the band. Tall warm living room lamps with some fake palms draining over them. The bar's sound system sat right above the band, perfect for plugging in gentle rain and light thunder underneath the music.\n\nThere was a half wall leading to another open room where I planned to set up what I called the Weatherman 5000. A green screen with a VHS camcorder shooting at it, sending signal into an Edirol V4 video mixer to key out the background and display it on more CRTs, making whoever stood in front of it look like the local meteorologist giving the forecast for the night.\n\nThe TVs and sound system were the backbone of the whole evening. I made an introduction video where an announcer welcomes everyone to Weather Channel Jazz night and introduces the band. The announcer is the real voice from the Weather Channel, deepfaked using clips I pulled from old recordings. He was there to drive the immersion. I treated him like the narrator on one of those old Universal Studios rides. \n\nAfter the intro, an hour of old Weather Channel footage played on the TVs while the band performed. Then the announcer broke in with that startling weather alert alarm declaring an \"Intermission Warning\" and told everyone to head to shelter at the bar. For 20 minutes, old commercials played while he checked back in letting people know how much time was left. Then the show continued for another hour.\n\nI also made drink menus based on storm puns and local Louisville meteorologist names. My dream is still to get Marc Weinberg to show up and use the Weatherman 5000.\n\nWe launched the first Weather Channel Jazz night in spring of 2025. I took the day off work to triple check everything and give myself enough setup time, including the inevitable \"why isn't ____ working\" window.\n\nThe event got shared quite a bit locally in the days leading up, but I didn't know what to expect. As the show began I had everything queued up perfectly, people were showing up and I couldn\u2019t believe my eyes\u2026it started pouring rain outside. It was too good to be true. About 75 to 100 people showed up, and they showed up enthusiastically!! Some were wearing Weather Channel shirts and jackets, lots of raincoats. Seeing people pretending to be meteorologists on the TVs while being serenaded by the smoothest jazz they'd ever heard was everything. Easily one of my top three projects I\u2019ve ever worked on. I'd do this every day if I could!\n\nCheck out the links below to learn more about Weather Channel Jazz and when the next one might pop up!",
@@ -1088,7 +879,8 @@ const PROJECTS = [
     "link": "https://www.instagram.com/reel/DGhRnkTs6jO/?utm_source=ig_web_copy_link&igsh=MzRlODBiNWFlZA==",
     "linkText": "Check out the promo!",
     "transform": {},
-    "noWindow": false
+    "noWindow": false,
+    "height": "16%"
   }
 ];
 
@@ -1101,6 +893,8 @@ function buildProjectFromConfig(project) {
   hotspot.style.left = project.left;
   hotspot.style.top = project.top;
   hotspot.style.width = project.width || '10%';
+  // Explicit height so transparent PNG hotspots don't collapse
+  hotspot.style.height = project.height || (parseFloat(project.width||'10') * 1.1) + '%';
 
   // Apply stored transform (rotation, skew, perspective, brightness)
   const xf = project.transform || {};
@@ -1140,16 +934,33 @@ function buildProjectFromConfig(project) {
   // "photo.jpg|left"         → float left, text wraps
   // "photo.jpg|row:photo2.jpg|row:photo3.jpg" → side-by-side row
 
-  // Build photo grid — all images equal size, 3 cols, click to lightbox
   const images = project.images || [];
-  const imgSrcs = images.map(raw => raw.split('|')[0]).filter(Boolean);
-  const imgHTML = imgSrcs.length ? `
-    <div class="photo-grid" data-proj="${project.id}">
-      ${imgSrcs.map((s, i) => `
-        <div class="pg-item" data-idx="${i}">
-          <img src="${s}" alt="${project.title}" loading="lazy">
-        </div>`).join('')}
-    </div>` : '';
+  let imgHTML = '';
+  let i = 0;
+  while (i < images.length) {
+    const raw = images[i];
+    const [src, layout = 'full'] = raw.split('|');
+
+    if (layout.startsWith('row')) {
+      // Collect all consecutive row items
+      const rowImgs = [src];
+      while (i + 1 < images.length && images[i+1].split('|')[1] === 'row') {
+        i++;
+        rowImgs.push(images[i].split('|')[0]);
+      }
+      imgHTML += `<div class="img-row">${rowImgs.map(s =>
+        `<img src="${s}" alt="${project.title}">`).join('')}</div>`;
+    } else if (layout === 'right' || layout === 'left') {
+      imgHTML += `<img src="${src}" alt="${project.title}" class="img-${layout}">`;
+    } else if (layout === 'half' || layout === 'third') {
+      imgHTML += `<img src="${src}" alt="${project.title}" class="img-${layout}">`;
+    } else {
+      imgHTML += `<img src="${src}" alt="${project.title}" class="img-full">`;
+    }
+    i++;
+  }
+  // Clear floats after images
+  if (imgHTML) imgHTML += '<div class="img-clear"></div>';
 
   // Parse description — supports:
   //   [link text](url)   → hyperlink
@@ -1188,20 +999,11 @@ function buildProjectFromConfig(project) {
       ${imgHTML}
     </div>
     <div class="mac-footer">
-      <span style="font-size:10px;color:#666;">Stan's World © 2026</span>
+      <span style="font-size:10px;color:#666;">Stanley's Desk © 2024</span>
       ${project.link ? `<a class="mac-link" href="${project.link}" target="_blank" rel="noopener">↗ ${project.linkText || 'View Project'}</a>` : ''}
     </div>
   `;
   document.body.appendChild(win);
-
-  // Wire photo grid clicks to lightbox
-  win.querySelectorAll('.pg-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const grid = item.closest('.photo-grid');
-      const allSrcs = Array.from(grid.querySelectorAll('img')).map(i => i.src);
-      openLightbox(allSrcs, parseInt(item.dataset.idx));
-    });
-  });
 
   // Attach events
   hotspot.addEventListener('mouseenter', () => {
@@ -1211,15 +1013,6 @@ function buildProjectFromConfig(project) {
     hoverLabel.textContent = hotspot.dataset.label;
     hotspot.classList.add('hovered');
     spawnBurstAt(hotspot);
-    // Wiggle the TV gif when hovering the WCJ hotspot
-    if (project.id === 'wcj-project') {
-      const gif = document.getElementById('tv-gif');
-      if (gif) {
-        gif.classList.remove('wiggling');
-        void gif.offsetWidth; // force reflow to restart animation
-        gif.classList.add('wiggling');
-      }
-    }
   });
   hotspot.addEventListener('mousemove', e => {
     hoverLabel.style.left = (e.clientX + 20) + 'px';
@@ -1369,86 +1162,5 @@ PROJECTS.forEach(buildProjectFromConfig);
   drawDust();
 })();
 </script>
-  <!-- AIM-style Lightbox -->
-  <div id="lightbox">
-    <div id="lb-window">
-
-      <!-- Title bar -->
-      <div id="lb-titlebar">
-        <div class="aim-icon">★</div>
-        <span class="aim-title">Instant Image - StansWorld</span>
-        <div id="lb-close">✕</div>
-      </div>
-
-      <!-- Menu bar -->
-      <div id="lb-menubar">
-        <span>File</span>
-        <span>Edit</span>
-        <span>People</span>
-        <span>Help</span>
-      </div>
-
-      <!-- Buddy bar -->
-      <div id="lb-userbar">
-        <div id="lb-buddy-icon">📷</div>
-        <div>
-          <div id="lb-screenname">StanTheMan83</div>
-          <div id="lb-status">Away Message: check out my work</div>
-        </div>
-      </div>
-
-      <!-- Photo -->
-      <div id="lb-photo-area">
-        <span id="lb-prev">&#8249;</span>
-        <img id="lb-img" src="" alt="">
-        <span id="lb-next">&#8250;</span>
-      </div>
-
-      <!-- Bottom bar -->
-      <div id="lb-bottombar">
-        <span id="lb-counter">1 / 1</span>
-        <span class="aim-away">← → arrow keys to navigate · Esc to close</span>
-      </div>
-
-    </div>
-  </div>
-
-  <script>
-  // ── Lightbox ──
-  let lbImages = [], lbIdx = 0;
-
-  function openLightbox(imgs, idx) {
-    lbImages = imgs; lbIdx = idx;
-    showLb();
-    document.getElementById('lightbox').classList.add('open');
-  }
-  function showLb() {
-    document.getElementById('lb-img').src = lbImages[lbIdx];
-    document.getElementById('lb-counter').textContent = (lbIdx+1) + ' / ' + lbImages.length;
-    document.getElementById('lb-prev').style.display = lbImages.length > 1 ? '' : 'none';
-    document.getElementById('lb-next').style.display = lbImages.length > 1 ? '' : 'none';
-  }
-  function closeLb() { document.getElementById('lightbox').classList.remove('open'); }
-
-  document.getElementById('lightbox').addEventListener('click', e => {
-    if (e.target === document.getElementById('lightbox')) closeLb();
-  });
-  document.getElementById('lb-window').addEventListener('click', e => e.stopPropagation());
-  document.getElementById('lb-close').addEventListener('click', closeLb);
-  document.getElementById('lb-prev').addEventListener('click', e => {
-    e.stopPropagation();
-    lbIdx = (lbIdx - 1 + lbImages.length) % lbImages.length; showLb();
-  });
-  document.getElementById('lb-next').addEventListener('click', e => {
-    e.stopPropagation();
-    lbIdx = (lbIdx + 1) % lbImages.length; showLb();
-  });
-  document.addEventListener('keydown', e => {
-    if (!document.getElementById('lightbox').classList.contains('open')) return;
-    if (e.key === 'Escape') closeLb();
-    if (e.key === 'ArrowLeft')  { lbIdx = (lbIdx-1+lbImages.length)%lbImages.length; showLb(); }
-    if (e.key === 'ArrowRight') { lbIdx = (lbIdx+1)%lbImages.length; showLb(); }
-  });
-  </script>
 </body>
 </html>
