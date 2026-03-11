@@ -171,6 +171,14 @@
     image-rendering: pixelated;
   }
 
+  /* Dust canvas — behind windows, above desk image */
+  #dust-canvas {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+
   /* Title bar */
   .mac-titlebar {
     background: var(--mac-black);
@@ -363,6 +371,7 @@
 <!-- SPARKLE CANVAS -->
 <canvas id="sparkle-canvas"></canvas>
 <canvas id="zoom-rect-canvas"></canvas>
+<canvas id="dust-canvas"></canvas>
 
 <!-- SCENE -->
 <div id="scene">
@@ -830,7 +839,9 @@ document.querySelectorAll('.mac-window').forEach(makeDraggable);
     linkText: "View Project"
   }
 */
-const PROJECTS = [];
+const PROJECTS = [
+  // Add new projects here — they'll be auto-rendered on page load
+];
 
 function buildProjectFromConfig(project) {
   // Create hotspot
@@ -962,6 +973,134 @@ function buildProjectFromConfig(project) {
 }
 
 PROJECTS.forEach(buildProjectFromConfig);
+
+// ════════════════════════════════════════
+// DUST PARTICLE SYSTEM
+// Slow-drifting motes that fade in and out
+// independently — warm amber tones to match
+// the desk lamp light
+// ════════════════════════════════════════
+(function() {
+  const dc  = document.getElementById('dust-canvas');
+  const dCtx = dc.getContext('2d');
+
+  function resize() {
+    dc.width  = window.innerWidth;
+    dc.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const PARTICLE_COUNT = 38;
+  const COLORS = [
+    'rgba(220,180,120,',  // warm amber
+    'rgba(200,160,100,',  // darker amber
+    'rgba(240,210,160,',  // pale gold
+    'rgba(180,150,100,',  // muted brown-gold
+    'rgba(255,220,150,',  // bright highlight
+  ];
+
+  // Each dust mote has its own full lifecycle
+  function makeMote() {
+    const w = dc.width;
+    const h = dc.height;
+    return {
+      x:     Math.random() * w,
+      y:     Math.random() * h,
+      // Very slow drift — mostly upward with slight horizontal wander
+      vx:    (Math.random() - 0.5) * 0.12,
+      vy:    -(Math.random() * 0.15 + 0.04),  // slow upward float
+      // Size: tiny, 1–2.5px — dust not snow
+      r:     Math.random() * 0.9 + 0.4,
+      // Each mote fades in, holds, fades out on its own timer
+      alpha:    0,
+      maxAlpha: Math.random() * 0.35 + 0.08, // 0.08–0.43 — subtle
+      // Lifecycle: 0=fadein 1=hold 2=fadeout
+      phase:    0,
+      // How long each phase lasts (in frames)
+      fadeInFrames:  Math.floor(Math.random() * 180 + 80),   // 1.3–4.3s
+      holdFrames:    Math.floor(Math.random() * 300 + 120),  // 2–7s
+      fadeOutFrames: Math.floor(Math.random() * 200 + 100),  // 1.7–5s
+      frameCount: 0,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      // Slight wobble — Brownian-ish micro motion
+      wobbleX: (Math.random() - 0.5) * 0.008,
+      wobbleY: (Math.random() - 0.5) * 0.005,
+    };
+  }
+
+  // Stagger initial motes so they don't all pulse together
+  const motes = Array.from({ length: PARTICLE_COUNT }, (_, i) => {
+    const m = makeMote();
+    // Start at random points in their lifecycle
+    m.phase = Math.floor(Math.random() * 3);
+    m.frameCount = Math.floor(Math.random() * 200);
+    if (m.phase === 1) m.alpha = m.maxAlpha;
+    return m;
+  });
+
+  function updateMote(m) {
+    m.frameCount++;
+    // Drift
+    m.vx += m.wobbleX;
+    m.vy += m.wobbleY;
+    // Dampen so it doesn't accelerate forever
+    m.vx *= 0.999;
+    m.vy *= 0.999;
+    m.x  += m.vx;
+    m.y  += m.vy;
+
+    // Lifecycle
+    if (m.phase === 0) {
+      // Fade in
+      m.alpha = Math.min(m.maxAlpha, (m.frameCount / m.fadeInFrames) * m.maxAlpha);
+      if (m.frameCount >= m.fadeInFrames) { m.phase = 1; m.frameCount = 0; }
+    } else if (m.phase === 1) {
+      // Hold — very slight pulse using sine
+      m.alpha = m.maxAlpha * (0.85 + 0.15 * Math.sin(m.frameCount * 0.02));
+      if (m.frameCount >= m.holdFrames) { m.phase = 2; m.frameCount = 0; }
+    } else {
+      // Fade out
+      m.alpha = Math.max(0, m.maxAlpha * (1 - m.frameCount / m.fadeOutFrames));
+      if (m.frameCount >= m.fadeOutFrames) {
+        // Respawn at a new random position
+        const fresh = makeMote();
+        Object.assign(m, fresh);
+      }
+    }
+
+    // Wrap edges — respawn on opposite side
+    const pad = 10;
+    if (m.x < -pad) m.x = dc.width  + pad;
+    if (m.x > dc.width  + pad) m.x = -pad;
+    if (m.y < -pad) m.y = dc.height + pad;
+    if (m.y > dc.height + pad) m.y = -pad;
+  }
+
+  function drawDust() {
+    dCtx.clearRect(0, 0, dc.width, dc.height);
+
+    motes.forEach(m => {
+      updateMote(m);
+      if (m.alpha <= 0.001) return;
+
+      // Draw as a soft radial gradient dot — blurry at edges
+      const grad = dCtx.createRadialGradient(m.x, m.y, 0, m.x, m.y, m.r * 2.5);
+      grad.addColorStop(0,   m.color + m.alpha + ')');
+      grad.addColorStop(0.4, m.color + (m.alpha * 0.6) + ')');
+      grad.addColorStop(1,   m.color + '0)');
+
+      dCtx.beginPath();
+      dCtx.arc(m.x, m.y, m.r * 2.5, 0, Math.PI * 2);
+      dCtx.fillStyle = grad;
+      dCtx.fill();
+    });
+
+    requestAnimationFrame(drawDust);
+  }
+
+  drawDust();
+})();
 </script>
 </body>
 </html>
