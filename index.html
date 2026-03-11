@@ -411,9 +411,12 @@
   .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin:10px 0 0 0;}
   .photo-grid .pg-item{aspect-ratio:1/1;overflow:hidden;cursor:pointer;border:1px solid var(--mac-dark);background:#111;}
   .photo-grid .pg-item img{width:100%;height:100%;object-fit:cover;}
+  
+  #lb-overlay, #lb-overlay * { cursor: default !important; }
+  #lb-overlay button, #lb-overlay a { cursor: pointer !important; }
   #lb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;}
   #lb-overlay.open{display:flex;}
-  #lb-window{width:660px;background:#d4d0c8;border:2px solid #000;box-shadow:4px 4px 14px rgba(0,0,0,0.7);font-family:'Tahoma',Arial,sans-serif;font-size:11px;}
+  #lb-window{cursor:default;width:660px;background:#d4d0c8;border:2px solid #000;box-shadow:4px 4px 14px rgba(0,0,0,0.7);font-family:'Tahoma',Arial,sans-serif;font-size:11px;}
   #lb-titlebar{background:linear-gradient(to bottom,#0a246a,#3a6ea5 50%,#0a246a);padding:3px 5px;display:flex;align-items:center;justify-content:space-between;height:26px;}
   #lb-titlebar-left{display:flex;align-items:center;gap:5px;color:#fff;font-weight:bold;font-size:12px;text-shadow:1px 1px 2px rgba(0,0,0,0.5);white-space:nowrap;}
   #lb-titlebar-btns{display:flex;gap:2px;flex-shrink:0;}
@@ -1263,7 +1266,7 @@ PROJECTS.forEach(buildProjectFromConfig);
         <button class="lb-tool"><span class="lb-tool-icon">&#128483;</span>Talk</button>
         <span id="lb-counter"></span>
       </div>
-      <button id="lb-send" onclick="window.location.href='mailto:stanleychaseiii@gmail.com?subject=Hey from StansWorld'">
+      <button id="lb-send" id="lb-send-mailto">
         <span id="lb-send-icon">&#9992;&#65039;</span>
         <span id="lb-send-label">Send Message</span>
         <div id="lb-send-bar"></div>
@@ -1289,6 +1292,16 @@ PROJECTS.forEach(buildProjectFromConfig);
     document.getElementById('lb-window').addEventListener('click',function(e){e.stopPropagation();});
     document.getElementById('lb-nav-l').addEventListener('click',function(){idx=(idx-1+imgs.length)%imgs.length;show();});
     document.getElementById('lb-nav-r').addEventListener('click',function(){idx=(idx+1)%imgs.length;show();});
+    var mailBtn = document.getElementById('lb-send-mailto');
+    if (mailBtn) mailBtn.addEventListener('click', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      var a = document.createElement('a');
+      a.href = 'mailto:stanleychaseiii@gmail.com?subject=Hey from StansWorld';
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
   });
   document.addEventListener('keydown',function(e){
     if(!document.getElementById('lb-overlay').classList.contains('open'))return;
