@@ -13,69 +13,57 @@ const fs   = require('fs');
 const path = require('path');
 const url  = require('url');
 
-// ══════════════════════════════════════════════════════
-// applyFixes — called after every save to ensure all
-// permanent features are always present in index.html
-// ══════════════════════════════════════════════════════
+// ── applyFixes: runs after every save ──────────────────────────────────────
+// Ensures AIM lightbox, photo grid, wiggle, and cursor fixes are always
+// present exactly once — safe to run on any version of index.html.
 function applyFixes(html) {
 
-  // ── 1. imgHTML → photo grid ──
-  const imgStart = html.indexOf('const images = project.images');
-  const imgEnd   = html.indexOf('if (imgHTML) imgHTML +=');
-  if (imgStart !== -1 && imgEnd !== -1) {
-    const lineEnd = imgEnd + html.slice(imgEnd).indexOf('\n') + 1;
-    html = html.slice(0, imgStart) +
-`const images = project.images || [];
-  let imgHTML = '';
-  if (images.length > 0) {
-    const srcs = images.map(raw => raw.split('|')[0]);
-    const items = srcs.map((s, i) => \`<div class="pg-item" data-src="\${s}"><img src="\${s}" alt=""></div>\`).join('');
-    imgHTML = \`<div class="photo-grid">\${items}</div>\`;
-  }` +
-    html.slice(lineEnd);
+  // 1. Fix hotspot position values — editor strips % signs, add them back
+  html = html.replace(/"(left|top|width|height)": (\d+(?:\.\d+)?)(?=[,\n}])/g,
+    (_, key, val) => `"${key}": "${val}%"`);
+
+  // 2. Remove ALL existing injected blocks so we can re-inject exactly once
+
+  // Remove AIM CSS block
+  while (html.includes('/* AIM XP */')) {
+    const i = html.indexOf('/* AIM XP */');
+    const end = html.indexOf('</style>', i);
+    html = html.slice(0, i) + html.slice(end);
   }
 
-  // ── 2. Scope mac-window cursor rule to titlebar only ──
+  // Remove AIM HTML block
+  while (html.includes('<!-- AIM -->')) {
+    const i = html.indexOf('<!-- AIM -->');
+    const divStart = html.indexOf('<div id="lb-overlay">', i);
+    const endMarker = html.indexOf('</div>\n</div>', divStart);
+    const blockEnd = endMarker + '</div>\n</div>'.length + 1;
+    html = html.slice(0, i) + html.slice(blockEnd);
+  }
+
+  // Remove AIM JS block
+  while (html.includes('function lbClose')) {
+    const i = html.indexOf('function lbClose');
+    const s = html.lastIndexOf('<script>', i);
+    const e = html.indexOf('</script>', i) + 9;
+    html = html.slice(0, s) + html.slice(e);
+  }
+
+  // Remove wiggle block
+  while (html.includes("dataset.project!=='wcj-project'")) {
+    const i = html.indexOf("dataset.project!=='wcj-project'");
+    const s = html.lastIndexOf('<script>', i);
+    const e = html.indexOf('</script>', i) + 9;
+    html = html.slice(0, s) + html.slice(e);
+  }
+
+  // 3. Scope mac-window cursor rule to titlebar only
   html = html.replace(
     '.mac-window, .mac-window * {\n    cursor: none !important;\n  }',
     '.mac-window .mac-titlebar, .mac-window .mac-titlebar * { cursor: none !important; }'
   );
 
-  // ── 3. Strip old AIM CSS ──
-  const aimCSSMarker = html.indexOf('/* AIM Lightbox */');
-  if (aimCSSMarker !== -1) {
-    const styleEnd = html.indexOf('</style>', aimCSSMarker);
-    html = html.slice(0, aimCSSMarker) + html.slice(styleEnd);
-  }
-
-  // ── 4. Strip old AIM HTML ──
-  const OLD_AIM_HTML = '<!-- AIM Lightbox -->\n<div id="lb-overlay">\n  <div id="lb-window">\n    <div id="lb-titlebar">\n      <span>&#128247; Instant Image - StansWorld</span>\n      <button id="lb-close">&#x2715;</button>\n    </div>\n    <div id="lb-menubar">\n      <span>File</span><span>Edit</span><span>People</span><span>Help</span>\n    </div>\n    <div id="lb-buddy">\n      <div id="lb-buddy-icon">&#9728;</div>\n      <div>\n        <div id="lb-buddy-name">StanTheMan83</div>\n        <div id="lb-buddy-away">check out my work</div>\n      </div>\n    </div>\n    <div id="lb-photo-area">\n      <button id="lb-nav-left">&#8249;</button>\n      <img id="lb-photo" src="" alt="">\n      <button id="lb-nav-right">&#8250;</button>\n    </div>\n    <div id="lb-statusbar">\n      <span id="lb-counter">1 / 1</span>\n      <span id="lb-hint">&#8592; &#8594; to navigate &middot; ESC to close</span>\n    </div>\n  </div>\n</div>';
-  html = html.replace(OLD_AIM_HTML, '');
-
-  // ── 5. Strip old AIM JS ──
-  for (const pat of ['let lbImages', 'var lbImages']) {
-    const i = html.indexOf(pat);
-    if (i !== -1) {
-      const s = html.lastIndexOf('<script>', i);
-      const e = html.indexOf('</script>', i) + 9;
-      html = html.slice(0, s) + html.slice(e);
-      break;
-    }
-  }
-
-  // ── 6. Strip old wiggle scripts ──
-  for (const pat of ["document.addEventListener('mouseover'", 'dataset.project !==']) {
-    const i = html.indexOf(pat);
-    if (i !== -1) {
-      const s = html.lastIndexOf('<script>', i);
-      const e = html.indexOf('</script>', i) + 9;
-      html = html.slice(0, s) + html.slice(e);
-    }
-  }
-
-  // ── 7. Inject AIM CSS (only if not already present) ──
-  if (!html.includes('/* AIM XP */')) {
-    const AIM_CSS = `
+  // 4. Inject AIM CSS
+  const AIM_CSS = `
   /* AIM XP */
   .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin:10px 0 0 0;}
   .photo-grid .pg-item{aspect-ratio:1/1;overflow:hidden;cursor:none !important;border:1px solid var(--mac-dark);background:#111;}
@@ -113,12 +101,10 @@ function applyFixes(html) {
   #lb-send-icon{font-size:22px;line-height:1;}
   #lb-send-label{font-size:10px;font-weight:bold;color:#000;margin-top:1px;white-space:nowrap;}
   #lb-send-bar{width:42px;height:4px;background:linear-gradient(to right,#cc0000,#ff5555);margin-top:2px;}`;
-    html = html.replace('</style>', AIM_CSS + '\n</style>');
-  }
+  html = html.replace('</style>', AIM_CSS + '\n</style>');
 
-  // ── 8. Inject AIM HTML (only if not already present) ──
-  if (!html.includes('<!-- AIM -->')) {
-    const AIM_HTML = `<!-- AIM -->
+  // 5. Inject AIM HTML
+  const AIM_HTML = `<!-- AIM -->
 <div id="lb-overlay">
   <div id="lb-window">
     <div id="lb-titlebar">
@@ -159,12 +145,10 @@ function applyFixes(html) {
     </div>
   </div>
 </div>`;
-    html = html.replace('</body>', AIM_HTML + '\n</body>');
-  }
+  html = html.replace('</body>', AIM_HTML + '\n</body>');
 
-  // ── 9. Inject AIM JS (only if not already present) ──
-  if (!html.includes('function lbClose')) {
-    const AIM_JS = `<script>
+  // 6. Inject AIM JS
+  const AIM_JS = `<script>
 (function(){
   var imgs=[],idx=0;
   function show(){document.getElementById('lb-photo').src=imgs[idx];document.getElementById('lb-counter').textContent=(idx+1)+' / '+imgs.length;}
@@ -191,11 +175,10 @@ function applyFixes(html) {
   });
 })();
 </script>`;
-    html = html.replace('</body>', AIM_JS + '\n</body>');
-  }
+  html = html.replace('</body>', AIM_JS + '\n</body>');
 
-  // ── 10. Inject wiggle JS (always re-inject — delegated, safe to repeat) ──
-  const WIGGLE_JS = `<script>
+  // 7. Inject wiggle
+  html = html.replace('</body>', `<script>
 document.addEventListener('mouseover',function(e){
   var hs=e.target.closest&&e.target.closest('.hotspot');
   if(!hs||hs.dataset.project!=='wcj-project')return;
@@ -203,11 +186,13 @@ document.addEventListener('mouseover',function(e){
   if(!gif)return;
   gif.classList.remove('wiggling');void gif.offsetWidth;gif.classList.add('wiggling');
 });
-</script>`;
-  html = html.replace('</body>', WIGGLE_JS + '\n</body>');
+</script>
+</body>`);
 
   return html;
 }
+// ── end applyFixes ──────────────────────────────────────────────────────────
+
 
 const PORT    = 3000;
 const FOLDER  = __dirname; // same folder as this script
