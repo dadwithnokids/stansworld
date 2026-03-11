@@ -1081,32 +1081,16 @@ function buildProjectFromConfig(project) {
   // "photo.jpg|row:photo2.jpg|row:photo3.jpg" → side-by-side row
 
   const images = project.images || [];
+  // Build photo grid — all images go into 3-col grid, click opens AIM lightbox
   let imgHTML = '';
-  let i = 0;
-  while (i < images.length) {
-    const raw = images[i];
-    const [src, layout = 'full'] = raw.split('|');
-
-    if (layout.startsWith('row')) {
-      // Collect all consecutive row items
-      const rowImgs = [src];
-      while (i + 1 < images.length && images[i+1].split('|')[1] === 'row') {
-        i++;
-        rowImgs.push(images[i].split('|')[0]);
-      }
-      imgHTML += `<div class="img-row">${rowImgs.map(s =>
-        `<img src="${s}" alt="${project.title}">`).join('')}</div>`;
-    } else if (layout === 'right' || layout === 'left') {
-      imgHTML += `<img src="${src}" alt="${project.title}" class="img-${layout}">`;
-    } else if (layout === 'half' || layout === 'third') {
-      imgHTML += `<img src="${src}" alt="${project.title}" class="img-${layout}">`;
-    } else {
-      imgHTML += `<img src="${src}" alt="${project.title}" class="img-full">`;
-    }
-    i++;
+  if (images.length > 0) {
+    const srcs = images.map(raw => raw.split('|')[0]);
+    const items = srcs.map((s, idx) =>
+      `<div class="pg-item" onclick="openLightbox(${JSON.stringify(srcs)}, ${idx})">` +
+      `<img src="${s}" alt="${project.title}"></div>`
+    ).join('');
+    imgHTML = `<div class="photo-grid">${items}</div>`;
   }
-  // Clear floats after images
-  if (imgHTML) imgHTML += '<div class="img-clear"></div>';
 
   // Parse description — supports:
   //   [link text](url)   → hyperlink
