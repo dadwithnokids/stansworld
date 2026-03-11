@@ -438,12 +438,106 @@
         <div class="field"><label>URL</label><input id="f-link" placeholder="https://..."></div>
         <div class="field"><label>Button Text</label><input id="f-linktext" placeholder="View Project"></div>
 
+        <!-- ── TRANSFORM SECTION ── -->
+        <div class="section-title" style="margin-top:4px;">
+          Transform
+          <span style="color:var(--dim);font-size:9px;letter-spacing:0;text-transform:none;font-weight:normal;"> — rotate, skew, perspective</span>
+        </div>
+        <div class="notice" style="font-size:9px;padding:4px 7px;margin-bottom:4px;">
+          Use these to align screen GIFs or angled objects. All changes preview live on the canvas.
+        </div>
+
+        <!-- Rotation Z -->
+        <div class="field"><label>Rotate Z° <span style="color:var(--dim);font-size:9px;">(spin)</span></label>
+          <div style="display:flex;gap:3px;align-items:center;">
+            <button class="btn xf-nudge" data-xf="rotZ" data-d="-1">«</button>
+            <button class="btn xf-nudge" data-xf="rotZ" data-d="-0.1">‹</button>
+            <input id="xf-rotZ" type="number" step="0.1" value="0" style="flex:1;width:0;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:11px;padding:5px 4px;text-align:center;">
+            <button class="btn xf-nudge" data-xf="rotZ" data-d="0.1">›</button>
+            <button class="btn xf-nudge" data-xf="rotZ" data-d="1">»</button>
+          </div>
+        </div>
+
+        <!-- rotateX / rotateY -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <div class="field"><label>rotateX° <span style="color:var(--dim);font-size:9px;">(tilt ↕)</span></label>
+            <div style="display:flex;gap:2px;align-items:center;">
+              <button class="btn xf-nudge" data-xf="rotX" data-d="-0.5">‹</button>
+              <input id="xf-rotX" type="number" step="0.1" value="0" style="flex:1;width:0;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:11px;padding:5px 3px;text-align:center;">
+              <button class="btn xf-nudge" data-xf="rotX" data-d="0.5">›</button>
+            </div>
+          </div>
+          <div class="field"><label>rotateY° <span style="color:var(--dim);font-size:9px;">(tilt ↔)</span></label>
+            <div style="display:flex;gap:2px;align-items:center;">
+              <button class="btn xf-nudge" data-xf="rotY" data-d="-0.5">‹</button>
+              <input id="xf-rotY" type="number" step="0.1" value="0" style="flex:1;width:0;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:11px;padding:5px 3px;text-align:center;">
+              <button class="btn xf-nudge" data-xf="rotY" data-d="0.5">›</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Skew X / Y -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <div class="field"><label>Skew X° <span style="color:var(--dim);font-size:9px;">(shear ↔)</span></label>
+            <div style="display:flex;gap:2px;align-items:center;">
+              <button class="btn xf-nudge" data-xf="skewX" data-d="-0.5">‹</button>
+              <button class="btn xf-nudge" data-xf="skewX" data-d="-0.1">·</button>
+              <input id="xf-skewX" type="number" step="0.1" value="0" style="flex:1;width:0;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:11px;padding:5px 2px;text-align:center;">
+              <button class="btn xf-nudge" data-xf="skewX" data-d="0.1">·</button>
+              <button class="btn xf-nudge" data-xf="skewX" data-d="0.5">›</button>
+            </div>
+          </div>
+          <div class="field"><label>Skew Y° <span style="color:var(--dim);font-size:9px;">(shear ↕)</span></label>
+            <div style="display:flex;gap:2px;align-items:center;">
+              <button class="btn xf-nudge" data-xf="skewY" data-d="-0.5">‹</button>
+              <button class="btn xf-nudge" data-xf="skewY" data-d="-0.1">·</button>
+              <input id="xf-skewY" type="number" step="0.1" value="0" style="flex:1;width:0;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:11px;padding:5px 2px;text-align:center;">
+              <button class="btn xf-nudge" data-xf="skewY" data-d="0.1">·</button>
+              <button class="btn xf-nudge" data-xf="skewY" data-d="0.5">›</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Perspective depth -->
+        <div class="field"><label>Perspective px <span style="color:var(--dim);font-size:9px;">(lower = more dramatic)</span></label>
+          <div style="display:flex;gap:3px;align-items:center;">
+            <button class="btn xf-nudge" data-xf="persp" data-d="-100">«</button>
+            <button class="btn xf-nudge" data-xf="persp" data-d="-25">‹</button>
+            <input id="xf-persp" type="number" step="25" value="800" style="flex:1;width:0;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:11px;padding:5px 4px;text-align:center;">
+            <button class="btn xf-nudge" data-xf="persp" data-d="25">›</button>
+            <button class="btn xf-nudge" data-xf="persp" data-d="100">»</button>
+          </div>
+        </div>
+
+        <!-- Brightness / Contrast -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <div class="field"><label>Brightness</label>
+            <div style="display:flex;gap:2px;align-items:center;">
+              <button class="btn xf-nudge" data-xf="bright" data-d="-0.05">‹</button>
+              <input id="xf-bright" type="number" step="0.05" value="1" style="flex:1;width:0;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:11px;padding:5px 3px;text-align:center;">
+              <button class="btn xf-nudge" data-xf="bright" data-d="0.05">›</button>
+            </div>
+          </div>
+          <div class="field"><label>Contrast</label>
+            <div style="display:flex;gap:2px;align-items:center;">
+              <button class="btn xf-nudge" data-xf="contrast" data-d="-0.05">‹</button>
+              <input id="xf-contrast" type="number" step="0.05" value="1" style="flex:1;width:0;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:11px;padding:5px 3px;text-align:center;">
+              <button class="btn xf-nudge" data-xf="contrast" data-d="0.05">›</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reset transform -->
+        <button class="btn" id="btn-reset-xf" style="font-size:10px;padding:3px 8px;align-self:flex-start;">↺ Reset transform</button>
+
         <div style="display:flex; gap:8px; margin-top:4px;">
           <button class="btn primary" id="btn-save" style="flex:1">Save Changes</button>
           <button class="btn danger" id="btn-delete">Delete</button>
         </div>
       </div>
     </div>
+
+
 
     <!-- SETTINGS TAB -->
     <div class="tab-content" id="tab-settings">
@@ -576,7 +670,30 @@ function makeItemEl(p) {
     el.style.cursor = 'grabbing';
   });
 
+  applyTransformToEl(el, p.transform || {});
   return el;
+}
+
+function applyTransformToEl(el, xf) {
+  const rotZ  = xf.rotZ   ?? 0;
+  const rotX  = xf.rotX   ?? 0;
+  const rotY  = xf.rotY   ?? 0;
+  const skewX = xf.skewX  ?? 0;
+  const skewY = xf.skewY  ?? 0;
+  const persp = xf.persp  ?? 800;
+  const bright   = xf.bright   ?? 1;
+  const contrast = xf.contrast ?? 1;
+
+  const hasTransform = rotZ || rotX || rotY || skewX || skewY;
+  if (hasTransform || persp !== 800) {
+    el.style.transform = `perspective(${persp}px) rotateX(${rotX}deg) rotateY(${rotY}deg) rotateZ(${rotZ}deg) skewX(${skewX}deg) skewY(${skewY}deg)`;
+  } else {
+    el.style.transform = '';
+  }
+  const img = el.querySelector('img');
+  if (img && (bright !== 1 || contrast !== 1)) {
+    img.style.filter = `drop-shadow(2px 4px 8px rgba(0,0,0,0.7)) brightness(${bright}) contrast(${contrast})`;
+  }
 }
 
 function renderItems() {
@@ -602,6 +719,8 @@ function renderItems() {
       // Update image src if changed
       const img = el.querySelector('img');
       if (img && p.imageSrc && img.src !== p.imageSrc) img.src = p.imageSrc;
+      // Re-apply transform
+      applyTransformToEl(el, p.transform || {});
     }
   });
 }
@@ -669,6 +788,17 @@ function showEditForm() {
   document.getElementById('f-link').value     = p.link     || '';
   document.getElementById('f-linktext').value = p.linkText || 'View Project';
 
+  // Transform fields
+  const xf = p.transform || {};
+  document.getElementById('xf-rotZ').value    = xf.rotZ    ?? 0;
+  document.getElementById('xf-rotX').value    = xf.rotX    ?? 0;
+  document.getElementById('xf-rotY').value    = xf.rotY    ?? 0;
+  document.getElementById('xf-skewX').value   = xf.skewX   ?? 0;
+  document.getElementById('xf-skewY').value   = xf.skewY   ?? 0;
+  document.getElementById('xf-persp').value   = xf.persp   ?? 800;
+  document.getElementById('xf-bright').value  = xf.bright  ?? 1;
+  document.getElementById('xf-contrast').value = xf.contrast ?? 1;
+
   // Images list
   renderImgList(p);
 }
@@ -728,6 +858,7 @@ document.getElementById('btn-save').addEventListener('click', () => {
   p.description = document.getElementById('f-desc').value.trim();
   p.link        = document.getElementById('f-link').value.trim();
   p.linkText    = document.getElementById('f-linktext').value.trim() || 'View Project';
+  p.transform   = readTransformFields();
   renderItems();
   renderItemList();
   // flash saved
@@ -771,6 +902,7 @@ function addNewItem(opts = {}) {
     images:      opts.images      || [],
     link:        opts.link        || '',
     linkText:    opts.linkText    || 'View Project',
+    transform:   opts.transform   || {},
   };
   projects.push(p);
   selectItem(id);
@@ -1102,6 +1234,67 @@ document.getElementById('btn-save-settings').addEventListener('click', () => {
 renderItemList();
 showEditForm();
 updateBgPreview();
+
+// ════════════════════════════════════════
+// TRANSFORM CONTROLS — live preview
+// Wired to the Edit tab nudge buttons;
+// updates the selected item on the canvas
+// in real time as you click.
+// ════════════════════════════════════════
+
+function readTransformFields() {
+  return {
+    rotZ:     parseFloat(document.getElementById('xf-rotZ').value)    || 0,
+    rotX:     parseFloat(document.getElementById('xf-rotX').value)    || 0,
+    rotY:     parseFloat(document.getElementById('xf-rotY').value)    || 0,
+    skewX:    parseFloat(document.getElementById('xf-skewX').value)   || 0,
+    skewY:    parseFloat(document.getElementById('xf-skewY').value)   || 0,
+    persp:    parseFloat(document.getElementById('xf-persp').value)   || 800,
+    bright:   parseFloat(document.getElementById('xf-bright').value)  || 1,
+    contrast: parseFloat(document.getElementById('xf-contrast').value)|| 1,
+  };
+}
+
+function applyTransformLive() {
+  const p = getSelected(); if (!p) return;
+  p.transform = readTransformFields();
+  const el = canvasWrap.querySelector(`.desk-item[data-id="${p.id}"]`);
+  if (el) applyTransformToEl(el, p.transform);
+}
+
+// Nudge buttons — click once, update field, fire live preview
+document.querySelectorAll('.xf-nudge').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const field = document.getElementById('xf-' + btn.dataset.xf);
+    if (!field) return;
+    const val = (parseFloat(field.value) || 0) + parseFloat(btn.dataset.d);
+    field.value = Math.round(val * 1000) / 1000;
+    applyTransformLive();
+  });
+});
+
+// Direct input typing also fires live preview
+['rotZ','rotX','rotY','skewX','skewY','persp','bright','contrast'].forEach(name => {
+  const el = document.getElementById('xf-' + name);
+  if (el) el.addEventListener('input', applyTransformLive);
+});
+
+// Reset button
+document.getElementById('btn-reset-xf').addEventListener('click', () => {
+  const p = getSelected(); if (!p) return;
+  p.transform = {};
+  document.getElementById('xf-rotZ').value    = 0;
+  document.getElementById('xf-rotX').value    = 0;
+  document.getElementById('xf-rotY').value    = 0;
+  document.getElementById('xf-skewX').value   = 0;
+  document.getElementById('xf-skewY').value   = 0;
+  document.getElementById('xf-persp').value   = 800;
+  document.getElementById('xf-bright').value  = 1;
+  document.getElementById('xf-contrast').value = 1;
+  const el = canvasWrap.querySelector(`.desk-item[data-id="${p.id}"]`);
+  if (el) applyTransformToEl(el, {});
+});
+
 </script>
 </body>
 </html>

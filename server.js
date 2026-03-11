@@ -127,6 +127,74 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── API: POST /save-screens ──
+  if (req.method === 'POST' && pathname === '/save-screens') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { screens } = JSON.parse(body);
+        let html = fs.readFileSync(indexPath, 'utf8');
+
+        // For each screen, replace its CSS block inside <style>
+        for (const [id, s] of Object.entries(screens)) {
+          const newCSS = `  #${id} {
+    left: ${s.left}%; top: ${s.top}%;
+    width: ${s.width}%; height: ${s.height}%;
+    display: ${s.visible ? 'block' : 'none'};
+    transform-origin: center center;
+    transform:
+      perspective(${s.persp}px)
+      rotateX(${s.rotX}deg)
+      rotateY(${s.rotY}deg)
+      rotateZ(${s.rotZ}deg)
+      skewX(${s.skewX}deg)
+      skewY(${s.skewY}deg);
+  }
+  #${id} img, #${id} video {
+    filter: brightness(${s.bright}) contrast(${s.contrast});
+  }`;
+
+          // Replace existing block between /* SC:id */ markers if present,
+          // otherwise do a best-effort replace of the id block
+          const marker = `/* SC:${id} */`;
+          if (html.includes(marker)) {
+            html = html.replace(
+              new RegExp(`/\\* SC:${id} \\*/[\\s\\S]*?/\\* SC:${id}:END \\*/`),
+              `${marker}\n${newCSS}\n  /* SC:${id}:END */`
+            );
+          } else {
+            // Inject before closing </style> of the first style block
+            html = html.replace(
+              '</style>',
+              `  ${marker}\n${newCSS}\n  /* SC:${id}:END */\n</style>`,
+              // only first occurrence
+            );
+            // JS replace only replaces first by default — good
+          }
+
+          // Also update src if provided
+          if (s.src) {
+            html = html.replace(
+              new RegExp(`(id="${id}"[^>]*>[\\s\\S]*?<(?:img|video)[^>]*src=")[^"]*"`),
+              `$1${s.src}"`
+            );
+          }
+        }
+
+        fs.writeFileSync(indexPath, html, 'utf8');
+        console.log(`[${new Date().toLocaleTimeString()}] Saved screen transforms to index.html`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (err) {
+        console.error('Save screens error:', err.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
   // ── SERVE STATIC FILES ──
   let filePath = pathname === '/' ? '/index.html' : pathname;
   filePath = path.join(FOLDER, filePath);
