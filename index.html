@@ -407,7 +407,7 @@
   .photo-grid .pg-item img { width:100%; height:100%; object-fit:cover; }
 
   
-  /* AIM XP Lightbox */
+  /* AIM XP */
   .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin:10px 0 0 0;}
   .photo-grid .pg-item{aspect-ratio:1/1;overflow:hidden;cursor:pointer;border:1px solid var(--mac-dark);background:#111;}
   .photo-grid .pg-item img{width:100%;height:100%;object-fit:cover;}
@@ -428,7 +428,6 @@
   #lb-buddy{background:#fff;border:1px solid #b0b0b0;margin:4px;padding:5px 7px;display:flex;align-items:center;gap:8px;}
   #lb-buddy-icon{width:32px;height:32px;flex-shrink:0;background:#ffdd00;border:1px solid #c0a000;display:flex;align-items:center;justify-content:center;font-size:20px;}
   #lb-buddy-name{font-weight:bold;color:#00008b;font-size:12px;}
-  #lb-buddy-away{font-size:10px;color:#808080;font-style:italic;}
   #lb-photo-wrap{background:#111;border:2px solid #808080;border-top-color:#404040;border-left-color:#404040;margin:0 4px 4px 4px;height:400px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;}
   #lb-photo{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;}
   .lb-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(212,208,200,0.9);border:1px solid #808080;border-top-color:#fff;border-left-color:#fff;width:28px;height:44px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#000;z-index:2;font-weight:bold;}
@@ -441,11 +440,11 @@
   .lb-tool:hover{background:#c0bdb5;border-color:#808080;}
   .lb-tool-icon{font-size:19px;line-height:1;margin-bottom:1px;}
   #lb-counter{font-size:10px;color:#555;margin-left:8px;align-self:center;}
-  #lb-send{display:flex;flex-direction:column;align-items:center;background:#d4d0c8;border:2px solid #fff;border-right-color:#404040;border-bottom-color:#404040;padding:3px 12px;cursor:pointer;font-family:'Tahoma',Arial,sans-serif;}
+  #lb-send{display:flex;flex-direction:column;align-items:center;background:#d4d0c8;border:2px solid #fff;border-right-color:#404040;border-bottom-color:#404040;padding:4px 14px;cursor:pointer;font-family:'Tahoma',Arial,sans-serif;}
   #lb-send:hover{background:#c0bdb5;}
   #lb-send:active{border-top-color:#404040;border-left-color:#404040;border-right-color:#fff;border-bottom-color:#fff;}
   #lb-send-icon{font-size:22px;line-height:1;}
-  #lb-send-label{font-size:10px;font-weight:bold;color:#000;margin-top:1px;}
+  #lb-send-label{font-size:10px;font-weight:bold;color:#000;margin-top:1px;white-space:nowrap;}
   #lb-send-bar{width:42px;height:4px;background:linear-gradient(to right,#cc0000,#ff5555);margin-top:2px;}
 </style>
 </head>
@@ -1024,12 +1023,9 @@ function buildProjectFromConfig(project) {
   let imgHTML = '';
   if (images.length > 0) {
     const srcs = images.map(raw => raw.split('|')[0]);
-    const items = srcs.map((s, i) =>
-      `<div class="pg-item" data-src="${s}"><img src="${s}" alt=""></div>`
-    ).join('');
+    const items = srcs.map((s, i) => `<div class="pg-item" data-src="${s}"><img src="${s}" alt=""></div>`).join('');
     imgHTML = `<div class="photo-grid">${items}</div>`;
-  }  if (imgHTML) imgHTML += '<div class="img-clear"></div>';
-
+  }
   // Parse description — supports:
   //   [link text](url)   → hyperlink
   //   **bold**           → bold
@@ -1238,14 +1234,21 @@ PROJECTS.forEach(buildProjectFromConfig);
 <div id="lb-overlay">
   <div id="lb-window">
     <div id="lb-titlebar">
-      <div id="lb-titlebar-left">&#128172; Glens Instint Mesanger : Dadwithnokids</div>
-      <div id="lb-titlebar-btns"><button class="lb-tbtn">&#8211;</button><button class="lb-tbtn">&#9633;</button><button class="lb-tbtn" id="lb-x">&#x2715;</button></div>
+      <div id="lb-titlebar-left">&#128172; Glens Instint Mesanger</div>
+      <div id="lb-titlebar-btns">
+        <button class="lb-tbtn">&#8211;</button>
+        <button class="lb-tbtn">&#9633;</button>
+        <button class="lb-tbtn" id="lb-x">&#x2715;</button>
+      </div>
     </div>
     <div id="lb-menubar">
       <div id="lb-menu-l"><span>File</span><span>Edit</span><span>Insert</span><span>People</span></div>
       <span id="lb-warnlevel">Dadwithnokids's Warning Level: 0%</span>
     </div>
-    <div id="lb-buddy"><div id="lb-buddy-icon">&#9728;</div><div><div id="lb-buddy-name">Dadwithnokids</div><div id="lb-buddy-away">check out my work</div></div></div>
+    <div id="lb-buddy">
+      <div id="lb-buddy-icon">&#9728;</div>
+      <div><div id="lb-buddy-name">Dadwithnokids</div></div>
+    </div>
     <div id="lb-photo-wrap">
       <button class="lb-nav" id="lb-nav-l">&#8249;</button>
       <img id="lb-photo" src="" alt="">
@@ -1261,7 +1264,9 @@ PROJECTS.forEach(buildProjectFromConfig);
         <span id="lb-counter"></span>
       </div>
       <button id="lb-send" onclick="window.location.href='mailto:stanleychaseiii@gmail.com?subject=Hey from StansWorld'">
-        <span id="lb-send-icon">&#128140;</span><span id="lb-send-label">S<u>e</u>nd</span><div id="lb-send-bar"></div>
+        <span id="lb-send-icon">&#9992;&#65039;</span>
+        <span id="lb-send-label">Send Message</span>
+        <div id="lb-send-bar"></div>
       </button>
     </div>
   </div>
