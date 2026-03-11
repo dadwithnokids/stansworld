@@ -418,7 +418,7 @@
   }
   #lb-overlay.open { display: flex; }
   #lb-window {
-    width: 520px;
+    width: 680px;
     background: #d4d0c8;
     border: 2px solid #808080;
     box-shadow: 3px 3px 0 #000;
@@ -472,7 +472,7 @@
     background: #fff;
     border: 2px inset #808080;
     margin: 8px;
-    height: 340px;
+    height: 460px;
     display: flex; align-items: center; justify-content: center;
     overflow: hidden;
     position: relative;
@@ -653,7 +653,6 @@ document.querySelectorAll('.hotspot').forEach(hotspot => {
     hotspot.classList.add('hovered');
     // Single burst — fire once on enter
     spawnBurstAt(hotspot);
-    // Wiggle TV gif on WCJ hover
     if (hotspot.dataset.project === 'wcj-project') {
       const gif = document.getElementById('tv-gif');
       if (gif) { gif.classList.remove('wiggling'); void gif.offsetWidth; gif.classList.add('wiggling'); }
@@ -1082,15 +1081,14 @@ function buildProjectFromConfig(project) {
   // "photo.jpg|row:photo2.jpg|row:photo3.jpg" → side-by-side row
 
   const images = project.images || [];
-  // Build 3-col photo grid with data attributes for lightbox
   let imgHTML = '';
   if (images.length > 0) {
     const srcs = images.map(raw => raw.split('|')[0]);
     const items = srcs.map((s, idx) =>
-      `<div class="pg-item" data-lb-src="${s}" data-lb-idx="${idx}" data-lb-id="${project.id}">` +
+      `<div class="pg-item" data-lb-src="${s}" data-lb-idx="${idx}">` +
       `<img src="${s}" alt=""></div>`
     ).join('');
-    imgHTML = `<div class="photo-grid" data-lb-id="${project.id}">${items}</div>`;
+    imgHTML = `<div class="photo-grid">${items}</div>`;
   }
 
   // Parse description — supports:
@@ -1295,51 +1293,56 @@ PROJECTS.forEach(buildProjectFromConfig);
 </script>
 
 <script>
-// ── AIM LIGHTBOX — event delegation, no inline onclick needed ──
+// ── AIM LIGHTBOX ──
 let lbImages = [];
 let lbIndex  = 0;
+
+function openLightbox(images, startIndex) {
+  lbImages = images;
+  lbIndex  = startIndex;
+  showLbPhoto();
+  document.getElementById('lb-overlay').classList.add('open');
+}
 
 function showLbPhoto() {
   document.getElementById('lb-photo').src = lbImages[lbIndex];
   document.getElementById('lb-counter').textContent = (lbIndex+1) + ' / ' + lbImages.length;
 }
 
-// Delegated click — catches pg-item clicks even after window innerHTML is rebuilt
-document.addEventListener('click', e => {
-  const item = e.target.closest('.pg-item');
-  if (!item) return;
-  // Gather all sibling images in this grid
-  const grid = item.closest('.photo-grid');
-  if (!grid) return;
-  const items = Array.from(grid.querySelectorAll('.pg-item'));
-  lbImages = items.map(el => el.dataset.lbSrc);
-  lbIndex  = items.indexOf(item);
-  showLbPhoto();
-  document.getElementById('lb-overlay').classList.add('open');
-});
-
-document.getElementById('lb-close').addEventListener('click', () => {
-  document.getElementById('lb-overlay').classList.remove('open');
-});
-document.getElementById('lb-overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('lb-overlay')) {
+// AIM controls — wrapped in DOMContentLoaded so elements exist
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('lb-close').addEventListener('click', () => {
     document.getElementById('lb-overlay').classList.remove('open');
-  }
-});
-document.getElementById('lb-window').addEventListener('click', e => e.stopPropagation());
-document.getElementById('lb-nav-left').addEventListener('click', () => {
-  lbIndex = (lbIndex - 1 + lbImages.length) % lbImages.length;
-  showLbPhoto();
-});
-document.getElementById('lb-nav-right').addEventListener('click', () => {
-  lbIndex = (lbIndex + 1) % lbImages.length;
-  showLbPhoto();
+  });
+  document.getElementById('lb-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('lb-overlay')) {
+      document.getElementById('lb-overlay').classList.remove('open');
+    }
+  });
+  document.getElementById('lb-window').addEventListener('click', e => e.stopPropagation());
+  document.getElementById('lb-nav-left').addEventListener('click', () => {
+    lbIndex = (lbIndex - 1 + lbImages.length) % lbImages.length;
+    showLbPhoto();
+  });
+  document.getElementById('lb-nav-right').addEventListener('click', () => {
+    lbIndex = (lbIndex + 1) % lbImages.length;
+    showLbPhoto();
+  });
 });
 document.addEventListener('keydown', e => {
-  if (!document.getElementById('lb-overlay').classList.contains('open')) return;
-  if (e.key === 'Escape') document.getElementById('lb-overlay').classList.remove('open');
+  const overlay = document.getElementById('lb-overlay');
+  if (!overlay || !overlay.classList.contains('open')) return;
+  if (e.key === 'Escape') overlay.classList.remove('open');
   if (e.key === 'ArrowLeft')  { lbIndex = (lbIndex-1+lbImages.length)%lbImages.length; showLbPhoto(); }
   if (e.key === 'ArrowRight') { lbIndex = (lbIndex+1)%lbImages.length; showLbPhoto(); }
+});
+
+// Wiggle via event delegation — works regardless of when hotspots are built
+document.addEventListener('mouseover', e => {
+  const hotspot = e.target.closest('.hotspot[data-project="wcj-project"]');
+  if (!hotspot) return;
+  const gif = document.getElementById('tv-gif');
+  if (gif) { gif.classList.remove('wiggling'); void gif.offsetWidth; gif.classList.add('wiggling'); }
 });
 </script>
 
