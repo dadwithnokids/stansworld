@@ -180,71 +180,6 @@
   }
 
   /* ── SCREEN OVERLAYS ── */
-  .screen-overlay {
-    position: absolute;
-    overflow: hidden;
-    z-index: 3;
-    pointer-events: none;
-  }
-  .screen-overlay img,
-  .screen-overlay video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  /* Scanline overlay on all screens */
-  .screen-overlay::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      rgba(0,0,0,0.12) 0px,
-      rgba(0,0,0,0.12) 1px,
-      transparent 1px,
-      transparent 3px
-    );
-    pointer-events: none;
-    z-index: 1;
-  }
-  /* Subtle inner shadow for screen depth */
-  .screen-overlay::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    box-shadow: inset 0 0 18px rgba(0,0,0,0.55);
-    pointer-events: none;
-    z-index: 2;
-  }
-
-  /* Laptop screen — slight backward tilt */
-  #screen-laptop {
-    left: 45.4%;
-    top:  67.5%;
-    width: 7.4%;
-    height: 10.5%;
-    transform-origin: center center;
-    transform:
-      perspective(800px)
-      rotateX(4deg)
-      rotateY(2deg);
-    filter: brightness(1.0) contrast(1.05);
-  }
-
-  /* TV/monitor screen — nearly straight on */
-  #screen-tv {
-    left: 66.0%;
-    top:  67.8%;
-    width: 8.0%;
-    height: 10.0%;
-    transform-origin: center center;
-    transform:
-      perspective(800px)
-      rotateX(3deg)
-      rotateY(-1deg);
-    filter: brightness(0.9) contrast(1.1) saturate(0.9);
-  }
 
   /* Title bar */
   .mac-titlebar {
@@ -442,16 +377,6 @@
 
 <!-- SCENE -->
 <div id="scene">
-
-  <!-- ── SCREEN OVERLAYS ── -->
-  <!-- Replace laptop-screen.gif and tv-screen.gif with your actual files -->
-  <!-- To disable one, just comment it out -->
-  <div class="screen-overlay" id="screen-laptop">
-    <img src="laptop-screen.gif" alt="">
-  </div>
-  <div class="screen-overlay" id="screen-tv">
-    <img src="tv-screen.gif" alt="">
-  </div>
 
   <!-- Hotspots added via editor.html / PROJECTS array below -->
 
@@ -917,30 +842,7 @@ document.querySelectorAll('.mac-window').forEach(makeDraggable);
   }
 */
 const PROJECTS = [
-  {
-    "id": "wcjtv",
-    "label": "Weather Channel Jazz!",
-    "left": "66.9%",
-    "top": "67.2%",
-    "width": "7%",
-    "imageSrc": "tv-screen.gif",
-    "title": "Weather Channel Jazz",
-    "description": "My good friend Scott was part of a jazz band that played at a local bar here in Louisville called The Whirling Tiger every Wednesday night. Aly and I don't go out much, but we tried to make it up every week to see them. One night I had an idea while we were up there and  approached them asking if they would let me produce a night. They were maybe a bit confused at first, but they said \"alright, we'll allow it!\"\n\nMost of my ideas come from creating modern experiences inside nostalgic worlds. I love taking things from the past, forgotten or flat out ignored, and bringing new life into them. The most enjoyable creative vehicle for me is immersion. It's not just for the thrill of it, it's one of the only ways I've ever felt truly satisfied with a project on my mind. I struggle pitching ideas, finding the words to say what I want, how I want something to land.  All my life I've found myself abandoning ideas and sometimes falling into depression over feeling misunderstood when I simply can’t find the words…It’s like I’m trying to speak a language that I don’t understand. The only way out I've found is to just make the thing in a closed room and show people afterwards.\n\n**The Idea:** \n\nThere's a small, niche group of people online who find the old Weather Channel from the 80s and 90s to be almost meditative. You can find hours of [old VHS recordings on YouTube](https://www.youtube.com/watch?v=pbw85r5pa_Q&t=8129s), grainy and squiggly, with a comforting professional voice giving updates, old commercials, and incredibly smooth jazz playing over everything. I wanted to create an evening at this bar that made everyone feel that warm, hard-to-put-your-finger-on sensation those videos give you. Part of it is nostalgia, but then why do younger Gen Z kids love this stuff?? How can they be nostalgic for something they've never seen?\n\nI started drawing a map on a napkin. The space was a long wide rectangle, and I knew where the band positioned themselves, so I built everything around that. Two mid-size black 90s CRT TVs, one on each side of the band. Tall warm living room lamps with some fake palms draining over them. The bar's sound system sat right above the band, perfect for plugging in gentle rain and light thunder underneath the music.\n\nThere was a half wall leading to another open room where I planned to set up what I called the Weatherman 5000. A green screen with a VHS camcorder shooting at it, sending signal into an Edirol V4 video mixer to key out the background and display it on more CRTs, making whoever stood in front of it look like the local meteorologist giving the forecast for the night.\n\nThe TVs and sound system were the backbone of the whole evening. I made an introduction video where an announcer welcomes everyone to Weather Channel Jazz night and introduces the band. The announcer is the real voice from the Weather Channel, deepfaked using clips I pulled from old recordings. He was there to drive the immersion. I treated him like the narrator on one of those old Universal Studios rides. \n\nAfter the intro, an hour of old Weather Channel footage played on the TVs while the band performed. Then the announcer broke in with that startling weather alert alarm declaring an \"Intermission Warning\" and told everyone to head to shelter at the bar. For 20 minutes, old commercials played while he checked back in letting people know how much time was left. Then the show continued for another hour.\n\nI also made drink menus based on storm puns and local Louisville meteorologist names. My dream is still to get Marc Weinberg to show up and use the Weatherman 5000.\n\nWe launched the first Weather Channel Jazz night in spring of 2025. I took the day off work to triple check everything and give myself enough setup time, including the inevitable \"why isn't ____ working\" window.\n\nThe event got shared quite a bit locally in the days leading up, but I didn't know what to expect. As the show began I had everything queued up perfectly, people were showing up and I couldn’t believe my eyes…it started pouring rain outside. It was too good to be true. About 75 to 100 people showed up, and they showed up enthusiastically!! Some were wearing Weather Channel shirts and jackets, lots of raincoats. Seeing people pretending to be meteorologists on the TVs while being serenaded by the smoothest jazz they'd ever heard was everything. Easily one of my top three projects I’ve ever worked on. I'd do this every day if I could!\n\nCheck out the links below to learn more about Weather Channel Jazz and when the next one might pop up!",
-    "images": [
-      "WCJ_1_TV.jpg",
-      "WCJ_2.jpg|third",
-      "WCJ_3_Logo.png|left",
-      "WCJ_4.png|right",
-      "WCJ_5.png|half",
-      "WCJ_6.png|left",
-      "WCJ_7.png|right",
-      "WCJ_8.png|row",
-      "WCJ_9.png|row",
-      "WCJ_10.png|row"
-    ],
-    "link": "https://www.instagram.com/reel/DGhRnkTs6jO/?utm_source=ig_web_copy_link&igsh=MzRlODBiNWFlZA==",
-    "linkText": "Check it out!"
-  }
+  // Add new projects here — they'll be auto-rendered on page load
 ];
 
 function buildProjectFromConfig(project) {
@@ -970,6 +872,13 @@ function buildProjectFromConfig(project) {
   }
 
   document.getElementById('scene').appendChild(hotspot);
+
+  // Screen-type items (noWindow: true) — just display the image, no click/window
+  if (project.noWindow) {
+    hotspot.style.cursor = 'default';
+    hotspot.style.pointerEvents = 'none';
+    return;
+  }
 
   // Create window
   const win = document.createElement('div');

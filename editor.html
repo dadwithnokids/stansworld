@@ -395,6 +395,12 @@
         <div class="section-title">Identity</div>
         <div class="field"><label>ID (no spaces)</label><input id="f-id" placeholder="my-project"></div>
         <div class="field"><label>Hover Label</label><input id="f-label" placeholder="My Project"></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:2px;">
+          <label style="display:flex;gap:6px;align-items:center;cursor:pointer;font-size:10px;color:var(--dim);">
+            <input type="checkbox" id="f-nowindow" style="accent-color:var(--amber);">
+            Screen / decoration <span style="color:var(--dim);font-size:9px;">(no popup window, not clickable)</span>
+          </label>
+        </div>
 
         <div class="section-title">Position &amp; Size</div>
         <div class="field-row">
@@ -404,6 +410,7 @@
         <div class="field"><label>Width %</label><input id="f-width" type="number" min="1" max="40" step="0.5" value="10"></div>
         <div class="field"><label>Object Image (filename)</label><input id="f-imgsrc" placeholder="myobject.png"></div>
 
+        <div id="window-content-section" style="display:flex;flex-direction:column;gap:10px;">
         <div class="section-title">↓ Popup Window Content</div>
         <div class="notice" style="font-size:9px; padding:5px 7px; margin-bottom:2px;">This is what shows inside the window when clicked on your site.</div>
         <div class="field"><label>Window Title</label><input id="f-title" placeholder="My Project"></div>
@@ -437,6 +444,7 @@
         <div class="section-title">Link Button</div>
         <div class="field"><label>URL</label><input id="f-link" placeholder="https://..."></div>
         <div class="field"><label>Button Text</label><input id="f-linktext" placeholder="View Project"></div>
+        </div><!-- /window-content-section -->
 
         <!-- ── TRANSFORM SECTION ── -->
         <div class="section-title" style="margin-top:4px;">
@@ -779,6 +787,9 @@ function showEditForm() {
 
   document.getElementById('f-id').value       = p.id;
   document.getElementById('f-label').value    = p.label    || '';
+  document.getElementById('f-nowindow').checked = p.noWindow || false;
+  // Show/hide window content section based on noWindow
+  document.getElementById('window-content-section').style.display = p.noWindow ? 'none' : '';
   document.getElementById('f-left').value     = p.left;
   document.getElementById('f-top').value      = p.top;
   document.getElementById('f-width').value    = p.width    || 10;
@@ -833,6 +844,10 @@ function renderImgList(p) {
   });
 }
 
+document.getElementById('f-nowindow').addEventListener('change', function() {
+  document.getElementById('window-content-section').style.display = this.checked ? 'none' : '';
+});
+
 document.getElementById('btn-addimg').addEventListener('click', () => {
   const p      = getSelected(); if (!p) return;
   const val    = document.getElementById('f-newimg').value.trim();
@@ -850,6 +865,7 @@ document.getElementById('btn-save').addEventListener('click', () => {
   p.id          = newId;
   selectedId    = newId;
   p.label       = document.getElementById('f-label').value.trim();
+  p.noWindow    = document.getElementById('f-nowindow').checked;
   p.left        = parseFloat(document.getElementById('f-left').value)  || p.left;
   p.top         = parseFloat(document.getElementById('f-top').value)   || p.top;
   p.width       = parseFloat(document.getElementById('f-width').value) || 10;
@@ -903,6 +919,7 @@ function addNewItem(opts = {}) {
     link:        opts.link        || '',
     linkText:    opts.linkText    || 'View Project',
     transform:   opts.transform   || {},
+    noWindow:    opts.noWindow    || false,
   };
   projects.push(p);
   selectItem(id);
