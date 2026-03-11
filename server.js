@@ -14,55 +14,65 @@ const path = require('path');
 const url  = require('url');
 
 // ── applyFixes: runs after every save ──────────────────────────────────────
-// Ensures AIM lightbox, photo grid, wiggle, and cursor fixes are always
-// present exactly once — safe to run on any version of index.html.
 function applyFixes(html) {
 
-  // 1. Fix hotspot position values — editor strips % signs, add them back
-  html = html.replace(/"(left|top|width|height)": (\d+(?:\.\d+)?)(?=[,\n}])/g,
-    (_, key, val) => `"${key}": "${val}%"`);
+  // 1. Fix hotspot positions — editor strips % signs
+  const marker = html.indexOf('const PROJECTS');
+  if (marker !== -1) {
+    const open = html.indexOf('[', marker);
+    let depth = 0, close = -1;
+    for (let i = open; i < html.length; i++) {
+      if (html[i] === '[') depth++;
+      else if (html[i] === ']') { depth--; if (depth === 0) { close = i; break; } }
+    }
+    if (close !== -1) {
+      let arr = html.slice(open, close + 1);
+      arr = arr.replace(/"(left|top|width|height)": (\d+(?:\.\d+)?)(?=[,\n\r}])/g,
+        (_, k, v) => `"${k}": "${v}%"`);
+      html = html.slice(0, open) + arr + html.slice(close + 1);
+    }
+  }
 
-  // 2. Remove ALL existing injected blocks so we can re-inject exactly once
+  // 2. Strip ALL injected blocks before re-injecting
 
-  // Remove AIM CSS block
+  // Strip AIM XP CSS
   while (html.includes('/* AIM XP */')) {
     const i = html.indexOf('/* AIM XP */');
     const end = html.indexOf('</style>', i);
+    if (end === -1) break;
     html = html.slice(0, i) + html.slice(end);
   }
 
-  // Remove AIM HTML block
+  // Strip AIM HTML block
   while (html.includes('<!-- AIM -->')) {
     const i = html.indexOf('<!-- AIM -->');
     const divStart = html.indexOf('<div id="lb-overlay">', i);
+    if (divStart === -1) break;
     const endMarker = html.indexOf('</div>\n</div>', divStart);
-    const blockEnd = endMarker + '</div>\n</div>'.length + 1;
+    if (endMarker === -1) break;
+    const blockEnd = endMarker + '</div>\n</div>'.length;
     html = html.slice(0, i) + html.slice(blockEnd);
   }
 
-  // Remove AIM JS block
+  // Strip AIM JS block
   while (html.includes('function lbClose')) {
     const i = html.indexOf('function lbClose');
     const s = html.lastIndexOf('<script>', i);
     const e = html.indexOf('</script>', i) + 9;
+    if (s === -1 || e < 9) break;
     html = html.slice(0, s) + html.slice(e);
   }
 
-  // Remove wiggle block
+  // Strip wiggle block
   while (html.includes("dataset.project!=='wcj-project'")) {
     const i = html.indexOf("dataset.project!=='wcj-project'");
     const s = html.lastIndexOf('<script>', i);
     const e = html.indexOf('</script>', i) + 9;
+    if (s === -1 || e < 9) break;
     html = html.slice(0, s) + html.slice(e);
   }
 
-  // 3. Scope mac-window cursor rule to titlebar only
-  html = html.replace(
-    '.mac-window, .mac-window * {\n    cursor: none !important;\n  }',
-    '.mac-window .mac-titlebar, .mac-window .mac-titlebar * { cursor: none !important; }'
-  );
-
-  // 4. Inject AIM CSS
+  // 3. Re-inject AIM CSS
   const AIM_CSS = `
   /* AIM XP */
   .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin:10px 0 0 0;}
@@ -103,7 +113,7 @@ function applyFixes(html) {
   #lb-send-bar{width:42px;height:4px;background:linear-gradient(to right,#cc0000,#ff5555);margin-top:2px;}`;
   html = html.replace('</style>', AIM_CSS + '\n</style>');
 
-  // 5. Inject AIM HTML
+  // 4. Re-inject AIM HTML
   const AIM_HTML = `<!-- AIM -->
 <div id="lb-overlay">
   <div id="lb-window">
@@ -147,7 +157,7 @@ function applyFixes(html) {
 </div>`;
   html = html.replace('</body>', AIM_HTML + '\n</body>');
 
-  // 6. Inject AIM JS
+  // 5. Re-inject AIM JS
   const AIM_JS = `<script>
 (function(){
   var imgs=[],idx=0;
@@ -177,7 +187,7 @@ function applyFixes(html) {
 </script>`;
   html = html.replace('</body>', AIM_JS + '\n</body>');
 
-  // 7. Inject wiggle
+  // 6. Re-inject wiggle
   html = html.replace('</body>', `<script>
 document.addEventListener('mouseover',function(e){
   var hs=e.target.closest&&e.target.closest('.hotspot');
