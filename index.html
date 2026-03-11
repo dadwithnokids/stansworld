@@ -653,6 +653,7 @@ document.querySelectorAll('.hotspot').forEach(hotspot => {
     hotspot.classList.add('hovered');
     // Single burst — fire once on enter
     spawnBurstAt(hotspot);
+    // Wiggle TV gif on WCJ hover
     if (hotspot.dataset.project === 'wcj-project') {
       const gif = document.getElementById('tv-gif');
       if (gif) { gif.classList.remove('wiggling'); void gif.offsetWidth; gif.classList.add('wiggling'); }
@@ -1081,15 +1082,15 @@ function buildProjectFromConfig(project) {
   // "photo.jpg|row:photo2.jpg|row:photo3.jpg" → side-by-side row
 
   const images = project.images || [];
-  // Build photo grid — all images go into 3-col grid, click opens AIM lightbox
+  // Build 3-col photo grid with data attributes for lightbox
   let imgHTML = '';
   if (images.length > 0) {
     const srcs = images.map(raw => raw.split('|')[0]);
     const items = srcs.map((s, idx) =>
-      `<div class="pg-item" onclick="openLightbox(${JSON.stringify(srcs)}, ${idx})">` +
-      `<img src="${s}" alt="${project.title}"></div>`
+      `<div class="pg-item" data-lb-src="${s}" data-lb-idx="${idx}" data-lb-id="${project.id}">` +
+      `<img src="${s}" alt=""></div>`
     ).join('');
-    imgHTML = `<div class="photo-grid">${items}</div>`;
+    imgHTML = `<div class="photo-grid" data-lb-id="${project.id}">${items}</div>`;
   }
 
   // Parse description — supports:
@@ -1294,21 +1295,28 @@ PROJECTS.forEach(buildProjectFromConfig);
 </script>
 
 <script>
-// ── AIM LIGHTBOX ──
+// ── AIM LIGHTBOX — event delegation, no inline onclick needed ──
 let lbImages = [];
 let lbIndex  = 0;
-
-function openLightbox(images, startIndex) {
-  lbImages = images;
-  lbIndex  = startIndex;
-  showLbPhoto();
-  document.getElementById('lb-overlay').classList.add('open');
-}
 
 function showLbPhoto() {
   document.getElementById('lb-photo').src = lbImages[lbIndex];
   document.getElementById('lb-counter').textContent = (lbIndex+1) + ' / ' + lbImages.length;
 }
+
+// Delegated click — catches pg-item clicks even after window innerHTML is rebuilt
+document.addEventListener('click', e => {
+  const item = e.target.closest('.pg-item');
+  if (!item) return;
+  // Gather all sibling images in this grid
+  const grid = item.closest('.photo-grid');
+  if (!grid) return;
+  const items = Array.from(grid.querySelectorAll('.pg-item'));
+  lbImages = items.map(el => el.dataset.lbSrc);
+  lbIndex  = items.indexOf(item);
+  showLbPhoto();
+  document.getElementById('lb-overlay').classList.add('open');
+});
 
 document.getElementById('lb-close').addEventListener('click', () => {
   document.getElementById('lb-overlay').classList.remove('open');
