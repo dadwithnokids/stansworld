@@ -446,7 +446,27 @@ iframe.addEventListener('load', () => {
   try {
     iframeDoc = iframe.contentDocument;
     iframeReady = true;
-    syncAllToIframe();
+
+    // Auto-load PROJECTS from the iframe on first load
+    if (!projects.length) {
+      try {
+        const iProjects = iframe.contentWindow.PROJECTS;
+        if (iProjects && iProjects.length) {
+          projects = iProjects.map(p => ({
+            ...p,
+            left:      parseFloat(p.left)  || 45,
+            top:       parseFloat(p.top)   || 55,
+            width:     parseFloat(p.width) || 10,
+            transform: p.transform || {},
+            images:    p.images    || [],
+          }));
+          renderItemList();
+          showEditForm();
+        }
+      } catch(e) { console.warn('Could not read PROJECTS from iframe', e); }
+    }
+
+    rebuildOverlayHandles();
   } catch(e) {
     console.warn('iframe access blocked', e);
   }
