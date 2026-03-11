@@ -1263,15 +1263,15 @@ PROJECTS.forEach(buildProjectFromConfig);
         <button class="lb-tool"><span class="lb-tool-icon">&#128483;</span>Talk</button>
         <span id="lb-counter"></span>
       </div>
-      <a id="lb-send" href="mailto:stanleychaseiii@gmail.com?subject=Hey%20from%20StansWorld" target="_blank">
+      <button id="lb-send" onclick="(function(){var a=document.createElement('a');a.href='mai'+'lto:'+'stanleychaseiii'+'@'+'gmail.com?subject=Hey from StansWorld';a.click();})();">
         <span id="lb-send-icon">&#9992;&#65039;</span>
         <span id="lb-send-label">Send Message</span>
         <div id="lb-send-bar"></div>
-      </a>
+      </button>
     </div>
   </div>
 </div>
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 (function(){
   var imgs=[],idx=0;
   function show(){document.getElementById('lb-photo').src=imgs[idx];document.getElementById('lb-counter').textContent=(idx+1)+' / '+imgs.length;}
@@ -1301,11 +1301,4 @@ PROJECTS.forEach(buildProjectFromConfig);
 <script>
 document.addEventListener('mouseover',function(e){
   var hs=e.target.closest&&e.target.closest('.hotspot');
-  if(!hs||hs.dataset.project!=='wcj-project')return;
-  var gif=document.getElementById('tv-gif');
-  if(!gif)return;
-  gif.classList.remove('wiggling');void gif.offsetWidth;gif.classList.add('wiggling');
-});
-</script>
-</body>
-</html>
+  if(!hs||hs.dataset.project!=='wcj-project')
