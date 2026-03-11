@@ -164,15 +164,17 @@ body { background:var(--bg); color:var(--text); font-family:'Courier New',monosp
 #mac-win-body a { color:#a06010; }
 #mac-win-body strong { font-weight:bold; }
 #mac-win-body em { font-style:italic; }
-/* Image layout classes */
-#mac-win-body img { display:block; max-width:100%; border:1px solid #bbb; margin:4px 0; }
-#mac-win-body .img-half  { max-width:50%; }
-#mac-win-body .img-third { max-width:33%; }
-#mac-win-body .img-left  { float:left; max-width:44%; margin:0 10px 6px 0; }
-#mac-win-body .img-right { float:right; max-width:44%; margin:0 0 6px 10px; }
-#mac-win-body .img-row   { display:flex; gap:6px; margin:6px 0; }
-#mac-win-body .img-row img { flex:1; width:0; max-width:none; margin:0; border:1px solid #bbb; }
-#mac-win-body .cf { clear:both; display:block; height:0; }
+/* Image layout — grid-based, no floats */
+#mac-win-body img { display:block; max-width:100%; border:1px solid #bbb; }
+/* Full-width standalone image */
+#mac-win-body .img-block { margin:6px 0; }
+#mac-win-body .img-block img { width:100%; }
+/* Column groups: images side by side with tiny gap */
+#mac-win-body .img-group { display:flex; gap:3px; margin:6px 0; }
+#mac-win-body .img-group .img-slot { flex:1; min-width:0; }
+#mac-win-body .img-group .img-slot img { width:100%; height:100%; object-fit:cover; display:block; }
+/* Wide+narrow: first slot 2x */
+#mac-win-body .img-group.wide-narrow .img-slot:first-child { flex:2; }
 #mac-win-footer { border-top:1px solid #bbb; padding:8px 16px; display:flex; justify-content:flex-end; background:#d4d0c8; }
 #mac-win-footer a { background:#333; color:#eee; font-size:10px; padding:4px 12px; text-decoration:none; letter-spacing:1px; font-family:'Courier New',monospace; }
 
@@ -908,13 +910,14 @@ function parseToBlocks(p) {
     blocks.push({type:'text', content:p.description});
   }
   (p.images||[]).forEach(raw=>{
-    const [src,layout='full'] = raw.split('|');
-    if (layout==='row') {
-      const last=blocks[blocks.length-1];
-      if (last&&last.type==='imgrow') last.images.push(src);
-      else blocks.push({type:'imgrow', images:[src]});
+    const parts = raw.split('|');
+    const src = parts[0];
+    const layoutRaw = parts[1]||'full';
+    if (layoutRaw==='row') {
+      // Convert legacy imgrow to 2col image blocks
+      blocks.push({type:'image', src, layout:'2col'});
     } else {
-      blocks.push({type:'image', src, layout});
+      blocks.push({type:'image', src, layout: normalizeLayout(layoutRaw)});
     }
   });
   return blocks;
@@ -924,10 +927,22 @@ function blocksToFields(blocks) {
   const desc = blocks.filter(b=>b.type==='text').map(b=>b.content).join('\n\n');
   const imgs = [];
   blocks.filter(b=>b.type!=='text').forEach(b=>{
-    if (b.type==='image') imgs.push(b.layout==='full'?b.src:b.src+'|'+b.layout);
-    else if (b.type==='imgrow') b.images.forEach(s=>imgs.push(s+'|row'));
+    if (b.type==='image') {
+      imgs.push(b.layout==='full' ? b.src : b.src+'|'+b.layout);
+    }
+    // imgrow kept for backwards compat but new editor doesn't create them
+    else if (b.type==='imgrow') {
+      b.images.forEach(s=>imgs.push(s+'|2col'));
+    }
   });
   return {description:desc, images:imgs};
+}
+
+// Map legacy layout names to new grid system
+function normalizeLayout(l) {
+  if (!l || l==='full') return 'full';
+  if (l==='half' || l==='third' || l==='left' || l==='right') return '2col';
+  return l; // pass through new keys: 2col, 3col, wide
 }
 
 function loadWCE(p) {
@@ -1015,6 +1030,12 @@ function buildInlineEditor(slot, block) {
     });
 
   } else if (block.type==='image') {
+    const layouts = [
+      {k:'full',    label:'━ Full',      desc:'full width'},
+      {k:'2col',    label:'▌▌ 2-col',    desc:'side by side (50/50)'},
+      {k:'3col',    label:'▌▌▌ 3-col',   desc:'three across (33/33/33)'},
+      {k:'wide',    label:'▌▌ Wide+Narrow', desc:'66/33 split'},
+    ];
     slot.innerHTML=`
       <label>Image file</label>
       <div style="display:flex;gap:5px;">
@@ -1024,10 +1045,10 @@ function buildInlineEditor(slot, block) {
       <div class="img-thumb-preview" id="ie-thumb">
         ${block.src?`<img src="${block.src}" onerror="this.parentElement.innerHTML='<span>not found</span>'">`:'<span>no image</span>'}
       </div>
-      <label style="margin-top:2px;">Layout</label>
+      <label style="margin-top:2px;">Layout <span style="color:var(--border2);font-size:9px;">— consecutive same-layout images group together</span></label>
       <div class="layout-btns">
-        ${['full','half','third','left','right'].map(l=>
-          `<button class="layout-btn${l===block.layout?' active':''}" data-l="${l}">${l}</button>`
+        ${layouts.map(l=>
+          `<button class="layout-btn${l.k===block.layout?' active':''}" data-l="${l.k}" title="${l.desc}">${l.label}</button>`
         ).join('')}
       </div>`;
 
@@ -1075,14 +1096,37 @@ function updatePreview() {
   const title = document.getElementById('wce-title').value||'—';
   document.getElementById('mac-win-title-bar').textContent = title;
 
+  // Group consecutive same-layout images into column groups
+  const grouped = [];
+  wceBlocks.forEach(b => {
+    if (b.type === 'image' && b.layout !== 'full') {
+      const last = grouped[grouped.length-1];
+      if (last && last.type === '_group' && last.layout === b.layout) {
+        last.items.push(b);
+      } else {
+        grouped.push({ type:'_group', layout: b.layout, items:[b] });
+      }
+    } else {
+      grouped.push(b);
+    }
+  });
+
   let html=`<h2>${title}</h2>`;
-  wceBlocks.forEach(b=>{
-    if (b.type==='text') html+=parseDesc(b.content);
-    else if (b.type==='image') {
-      const cls=b.layout==='full'?'':` class="img-${b.layout}"`;
-      html+=`<img src="${b.src}"${cls} onerror="this.style.opacity=.2"><div class="cf"></div>`;
+  grouped.forEach(b=>{
+    if (b.type==='text') {
+      html+=parseDesc(b.content);
+    } else if (b.type==='_group') {
+      const cls = b.layout==='wide' ? ' wide-narrow' : '';
+      const slots = b.items.map(img=>
+        `<div class="img-slot"><img src="${img.src}" onerror="this.style.opacity=.2"></div>`
+      ).join('');
+      html+=`<div class="img-group${cls}">${slots}</div>`;
+    } else if (b.type==='image') {
+      // full width
+      html+=`<div class="img-block"><img src="${b.src}" onerror="this.style.opacity=.2"></div>`;
     } else if (b.type==='imgrow') {
-      html+=`<div class="img-row">${b.images.map(s=>`<img src="${s}" onerror="this.style.opacity=.2">`).join('')}</div>`;
+      const slots = b.images.map(s=>`<div class="img-slot"><img src="${s}" onerror="this.style.opacity=.2"></div>`).join('');
+      html+=`<div class="img-group">${slots}</div>`;
     }
   });
   document.getElementById('mac-win-body').innerHTML=html;
