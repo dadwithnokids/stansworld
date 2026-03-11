@@ -174,17 +174,29 @@ body { background:var(--bg); color:var(--text); font-family:'Courier New',monosp
 #mac-win-body a { color:#a06010; }
 #mac-win-body strong { font-weight:bold; }
 #mac-win-body em { font-style:italic; }
-/* Image layout — grid-based, no floats */
-#mac-win-body img { display:block; max-width:100%; border:1px solid #bbb; }
-/* Full-width standalone image */
-#mac-win-body .img-block { margin:6px 0; }
-#mac-win-body .img-block img { width:100%; }
-/* Column groups: images side by side with tiny gap */
-#mac-win-body .img-group { display:flex; gap:3px; margin:6px 0; }
-#mac-win-body .img-group .img-slot { flex:1; min-width:0; }
-#mac-win-body .img-group .img-slot img { width:100%; height:100%; object-fit:cover; display:block; }
-/* Wide+narrow: first slot 2x */
-#mac-win-body .img-group.wide-narrow .img-slot:first-child { flex:2; }
+/* Photo grid — matches live site exactly */
+#mac-win-body .photo-grid {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:3px;
+  margin:10px 0 0;
+}
+#mac-win-body .photo-grid .pg-item {
+  aspect-ratio:1/1;
+  overflow:hidden;
+  border:1px solid #bbb;
+  background:#111;
+  cursor:pointer;
+  position:relative;
+}
+#mac-win-body .photo-grid .pg-item img {
+  width:100%; height:100%;
+  object-fit:cover;
+  display:block;
+  margin:0; border:none;
+  transition:opacity .1s;
+}
+#mac-win-body .photo-grid .pg-item:hover img { opacity:.8; }
 #mac-win-footer { border-top:1px solid #bbb; padding:8px 16px; display:flex; justify-content:flex-end; background:#d4d0c8; }
 #mac-win-footer a { background:#333; color:#eee; font-size:10px; padding:4px 12px; text-decoration:none; letter-spacing:1px; font-family:'Courier New',monospace; }
 
@@ -417,35 +429,37 @@ body { background:var(--bg); color:var(--text); font-family:'Courier New',monosp
       </div>
     </div>
 
-    <!-- WINDOW TAB (split: controls left, preview right) -->
+    <!-- WINDOW TAB -->
     <div class="tab-body" id="tab-window">
-      <div id="wce-empty-msg" class="notice" style="margin:10px;">Select a non-decoration item to edit its popup window.</div>
+      <div id="wce-empty-msg" class="notice" style="margin:10px;">Select an item to edit its popup window.</div>
       <div id="wce" style="display:none;">
-        <!-- Left -->
+
+        <!-- Left: controls -->
         <div id="wce-left">
-          <div class="sec">Window Title</div>
+          <div class="sec">Title</div>
           <div class="field"><input id="wce-title" placeholder="Project title"></div>
 
-          <div class="sec" style="margin-top:6px;">Content Blocks</div>
-          <div class="notice" style="font-size:9px;padding:4px 6px;margin-bottom:2px;">Click a block to edit it. ↑↓ reorder. Preview on the right updates live.</div>
-          <div id="block-list"></div>
-          <div id="block-editor-slot"></div>
-
-          <div style="display:flex;gap:4px;margin-top:4px;">
-            <button class="btn sm" id="wce-add-text">+ Text</button>
-            <button class="btn sm" id="wce-add-img">+ Image</button>
-            <button class="btn sm" id="wce-add-row">+ Row</button>
+          <div class="sec" style="margin-top:8px;">Description</div>
+          <div class="field">
+            <textarea id="wce-desc" style="min-height:100px;" placeholder="Write about this project...&#10;&#10;**bold** *italic* [link text](url)&#10;Blank line = new paragraph"></textarea>
           </div>
+
+          <div class="sec" style="margin-top:8px;">Photos
+            <span style="color:var(--dim);font-size:9px;letter-spacing:0;text-transform:none;font-weight:normal;"> — all display as equal grid squares</span>
+          </div>
+          <div class="notice" style="font-size:9px;padding:4px 6px;">↑↓ reorder · × remove · Browse to add</div>
+          <div id="img-list"></div>
+          <button class="btn sm" id="wce-add-img" style="margin-top:4px;">+ Add Photo</button>
 
           <div class="sec" style="margin-top:10px;">Link Button</div>
           <div class="field"><label>URL</label><input id="wce-link" placeholder="https://..."></div>
           <div class="field"><label>Label</label><input id="wce-linktext" placeholder="View Project"></div>
 
-          <button class="btn primary" id="wce-save" style="margin-top:8px;">Save Window Content</button>
+          <button class="btn primary" id="wce-save" style="margin-top:10px;">Save Window Content</button>
           <div id="wce-msg" style="font-size:10px;color:var(--dim);min-height:14px;margin-top:2px;"></div>
         </div>
 
-        <!-- Right: Mac window preview -->
+        <!-- Right: live Mac window preview -->
         <div id="wce-right">
           <div id="mac-win">
             <div id="mac-win-bar">
@@ -458,6 +472,7 @@ body { background:var(--bg); color:var(--text); font-family:'Courier New',monosp
             </div>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -510,8 +525,7 @@ let selectedId = null;
 let serverAvail= false;
 let cachedFiles= null;
 let fbCb       = null;   // file browser callback
-let wceBlocks  = [];
-let activeBlock= -1;     // which block is open for editing
+let wceImages  = [];     // flat list of image filenames for current project
 
 const cw = () => document.getElementById('scene-inner');
 const co = () => document.getElementById('canvas-overlay');
@@ -915,277 +929,103 @@ document.getElementById('btn-browse-img').addEventListener('click',()=>{
 // ════════════════════════════════════════
 // WINDOW CONTENT EDITOR
 // ════════════════════════════════════════
-function parseToBlocks(p) {
-  const blocks=[];
-  if (p.description && p.description!=='Add a description...') {
-    blocks.push({type:'text', content:p.description});
-  }
-  (p.images||[]).forEach(raw=>{
-    const parts = raw.split('|');
-    const src = parts[0];
-    const layoutRaw = parts[1]||'full';
-    if (layoutRaw==='row') {
-      // Convert legacy imgrow to 2col image blocks
-      blocks.push({type:'image', src, layout:'2col'});
-    } else {
-      blocks.push({type:'image', src, layout: normalizeLayout(layoutRaw)});
-    }
-  });
-  return blocks;
-}
+// Simplified: description text + list of image filenames.
+// Live site renders all images as a 3-col photo grid automatically.
 
-function blocksToFields(blocks) {
-  const desc = blocks.filter(b=>b.type==='text').map(b=>b.content).join('\n\n');
-  const imgs = [];
-  blocks.filter(b=>b.type!=='text').forEach(b=>{
-    if (b.type==='image') {
-      imgs.push(b.layout==='full' ? b.src : b.src+'|'+b.layout);
-    }
-    // imgrow kept for backwards compat but new editor doesn't create them
-    else if (b.type==='imgrow') {
-      b.images.forEach(s=>imgs.push(s+'|2col'));
-    }
-  });
-  return {description:desc, images:imgs};
-}
-
-// Map legacy layout names to new grid system
-function normalizeLayout(l) {
-  if (!l || l==='full') return 'full';
-  if (l==='half' || l==='third' || l==='left' || l==='right') return '2col';
-  return l; // pass through new keys: 2col, 3col, wide
+function getImgSrcs(p) {
+  return (p.images||[]).map(raw=>raw.split('|')[0]).filter(Boolean);
 }
 
 function loadWCE(p) {
-  wceBlocks  = parseToBlocks(p);
-  activeBlock= -1;
   document.getElementById('wce-title').value    = p.title   ||'';
   document.getElementById('wce-link').value     = p.link    ||'';
   document.getElementById('wce-linktext').value = p.linkText||'View Project';
-  renderWCE();
-}
-
-function renderWCE() {
-  renderBlockList();
+  document.getElementById('wce-desc').value     = (p.description||'').replace(/^Add a description\.\.\./, '').trim();
+  wceImages = getImgSrcs(p);
+  renderImageList();
   updatePreview();
 }
 
-function renderBlockList() {
-  const list = document.getElementById('block-list');
-  const slot = document.getElementById('block-editor-slot');
-  list.innerHTML=''; slot.innerHTML=''; slot.style.display='none';
-
-  wceBlocks.forEach((b,i)=>{
+function renderImageList() {
+  const list = document.getElementById('img-list');
+  list.innerHTML = '';
+  wceImages.forEach((src, i) => {
     const row = document.createElement('div');
-    row.className='block-row'+(i===activeBlock?' active':'');
-
-    let icon='¶', typeLabel='TEXT', summary='';
-    if (b.type==='image')  { icon='▣'; typeLabel='IMAGE'; summary=b.src?b.src+' ['+b.layout+']':'(no image)'; }
-    if (b.type==='imgrow') { icon='▦'; typeLabel='ROW';   summary=b.images.filter(Boolean).join(' + ')||'(empty)'; }
-    if (b.type==='text')   summary = b.content.slice(0,55).replace(/\n/g,' ')||'(empty)';
-
-    row.innerHTML=`
-      <div class="block-icon">${icon}</div>
-      <div class="block-summary">
-        <div class="block-type">${typeLabel}</div>
-        <div class="block-text">${summary}</div>
+    row.className = 'block-row';
+    row.innerHTML = `
+      <div class="img-thumb-preview" style="width:36px;height:36px;flex-shrink:0;">
+        <img src="${src}" onerror="this.style.opacity=.2">
+      </div>
+      <div class="block-summary" style="flex:1;min-width:0;">
+        <div class="block-text" style="font-size:10px;">${src}</div>
       </div>
       <div class="block-btns">
         <button data-a="up"   data-i="${i}">↑</button>
         <button data-a="down" data-i="${i}">↓</button>
         <button data-a="del"  data-i="${i}" style="color:var(--red);">×</button>
       </div>`;
-
-    // Click body = toggle inline editor
-    row.addEventListener('click', e=>{
-      if (e.target.closest('.block-btns')) return;
-      activeBlock = (activeBlock===i) ? -1 : i;
-      renderBlockList();
-    });
-
     row.querySelectorAll('.block-btns button').forEach(btn=>{
       btn.addEventListener('click', e=>{
         e.stopPropagation();
         const idx=+btn.dataset.i;
-        if (btn.dataset.a==='del') { wceBlocks.splice(idx,1); if(activeBlock>=wceBlocks.length) activeBlock=-1; renderWCE(); }
-        else if (btn.dataset.a==='up'   && idx>0) { swap(idx,idx-1); activeBlock=idx-1; renderWCE(); }
-        else if (btn.dataset.a==='down' && idx<wceBlocks.length-1) { swap(idx,idx+1); activeBlock=idx+1; renderWCE(); }
+        if (btn.dataset.a==='del') { wceImages.splice(idx,1); renderImageList(); updatePreview(); }
+        else if (btn.dataset.a==='up' && idx>0) { [wceImages[idx-1],wceImages[idx]]=[wceImages[idx],wceImages[idx-1]]; renderImageList(); updatePreview(); }
+        else if (btn.dataset.a==='down' && idx<wceImages.length-1) { [wceImages[idx],wceImages[idx+1]]=[wceImages[idx+1],wceImages[idx]]; renderImageList(); updatePreview(); }
       });
     });
-
     list.appendChild(row);
-
-    // Inline editor right after the active block
-    if (i===activeBlock) {
-      slot.style.display='flex';
-      slot.className='block-editor';
-      buildInlineEditor(slot, b);
-      list.appendChild(slot);
-    }
   });
-}
-
-function swap(a,b) { [wceBlocks[a],wceBlocks[b]]=[wceBlocks[b],wceBlocks[a]]; }
-
-function buildInlineEditor(slot, block) {
-  slot.innerHTML='';
-
-  if (block.type==='text') {
-    slot.innerHTML=`
-      <label>Text <span style="color:var(--border2);font-size:9px;">**bold** *italic* [link](url) blank line=new para</span></label>
-      <textarea id="ie-text">${block.content}</textarea>`;
-    slot.querySelector('#ie-text').addEventListener('input', e=>{
-      block.content=e.target.value; updatePreview();
-      const row=document.querySelector(`.block-row:nth-child(${activeBlock+1}) .block-text`);
-      if(row) row.textContent=block.content.slice(0,55).replace(/\n/g,' ')||'(empty)';
-    });
-
-  } else if (block.type==='image') {
-    const layouts = [
-      {k:'full',    label:'━ Full',      desc:'full width'},
-      {k:'2col',    label:'▌▌ 2-col',    desc:'side by side (50/50)'},
-      {k:'3col',    label:'▌▌▌ 3-col',   desc:'three across (33/33/33)'},
-      {k:'wide',    label:'▌▌ Wide+Narrow', desc:'66/33 split'},
-    ];
-    slot.innerHTML=`
-      <label>Image file</label>
-      <div style="display:flex;gap:5px;">
-        <input id="ie-src" value="${block.src||''}" placeholder="photo.jpg" style="flex:1;">
-        <button class="btn sm" id="ie-browse">Browse</button>
-      </div>
-      <div class="img-thumb-preview" id="ie-thumb">
-        ${block.src?`<img src="${block.src}" onerror="this.parentElement.innerHTML='<span>not found</span>'">`:'<span>no image</span>'}
-      </div>
-      <label style="margin-top:2px;">Layout <span style="color:var(--border2);font-size:9px;">— consecutive same-layout images group together</span></label>
-      <div class="layout-btns">
-        ${layouts.map(l=>
-          `<button class="layout-btn${l.k===block.layout?' active':''}" data-l="${l.k}" title="${l.desc}">${l.label}</button>`
-        ).join('')}
-      </div>`;
-
-    slot.querySelector('#ie-src').addEventListener('input', e=>{
-      block.src=e.target.value;
-      const t=document.getElementById('ie-thumb');
-      t.innerHTML=block.src?`<img src="${block.src}" onerror="this.parentElement.innerHTML='<span>not found</span>'">`:'<span>no image</span>';
-      updatePreview();
-    });
-    slot.querySelector('#ie-browse').addEventListener('click',()=>openFB(src=>{
-      block.src=src;
-      document.getElementById('ie-src').value=src;
-      const t=document.getElementById('ie-thumb');
-      t.innerHTML=`<img src="${src}" onerror="this.parentElement.innerHTML='<span>not found</span>'">`;
-      updatePreview();
-    }));
-    slot.querySelectorAll('.layout-btn').forEach(btn=>{
-      btn.addEventListener('click',()=>{
-        block.layout=btn.dataset.l;
-        slot.querySelectorAll('.layout-btn').forEach(b=>b.classList.toggle('active',b===btn));
-        updatePreview();
-      });
-    });
-
-  } else if (block.type==='imgrow') {
-    const rebuild=()=>{
-      slot.innerHTML=`<label>Row images (equal width, side by side)</label>
-        ${block.images.map((s,i)=>`
-          <div style="display:flex;gap:4px;align-items:center;">
-            <input class="ir-src" data-i="${i}" value="${s||''}" placeholder="image${i+1}.jpg" style="flex:1;">
-            <button class="btn sm ir-browse" data-i="${i}">📁</button>
-            <button class="btn sm danger ir-del" data-i="${i}">×</button>
-          </div>`).join('')}
-        <button class="btn sm" id="ir-add">+ Add Image</button>`;
-      slot.querySelectorAll('.ir-src').forEach(inp=>inp.addEventListener('input',e=>{block.images[+e.target.dataset.i]=e.target.value; updatePreview();}));
-      slot.querySelectorAll('.ir-browse').forEach(btn=>btn.addEventListener('click',()=>{const i=+btn.dataset.i; openFB(src=>{block.images[i]=src; rebuild(); updatePreview();});}));
-      slot.querySelectorAll('.ir-del').forEach(btn=>btn.addEventListener('click',()=>{block.images.splice(+btn.dataset.i,1); rebuild(); updatePreview();}));
-      document.getElementById('ir-add').addEventListener('click',()=>{block.images.push(''); rebuild();});
-    };
-    rebuild();
-  }
 }
 
 function updatePreview() {
   const title = document.getElementById('wce-title').value||'—';
+  const desc  = document.getElementById('wce-desc').value||'';
+  const link  = document.getElementById('wce-link').value.trim();
+  const ltext = document.getElementById('wce-linktext').value.trim()||'View Project';
+
   document.getElementById('mac-win-title-bar').textContent = title;
 
-  // Group consecutive same-layout images into column groups
-  const grouped = [];
-  wceBlocks.forEach(b => {
-    if (b.type === 'image' && b.layout !== 'full') {
-      const last = grouped[grouped.length-1];
-      if (last && last.type === '_group' && last.layout === b.layout) {
-        last.items.push(b);
-      } else {
-        grouped.push({ type:'_group', layout: b.layout, items:[b] });
-      }
-    } else {
-      grouped.push(b);
-    }
-  });
+  let html = `<h2>${title}</h2>`;
 
-  let html=`<h2>${title}</h2>`;
-  grouped.forEach(b=>{
-    if (b.type==='text') {
-      html+=parseDesc(b.content);
-    } else if (b.type==='_group') {
-      const cls = b.layout==='wide' ? ' wide-narrow' : '';
-      const slots = b.items.map(img=>
-        `<div class="img-slot"><img src="${img.src}" onerror="this.style.opacity=.2"></div>`
-      ).join('');
-      html+=`<div class="img-group${cls}">${slots}</div>`;
-    } else if (b.type==='image') {
-      // full width
-      html+=`<div class="img-block"><img src="${b.src}" onerror="this.style.opacity=.2"></div>`;
-    } else if (b.type==='imgrow') {
-      const slots = b.images.map(s=>`<div class="img-slot"><img src="${s}" onerror="this.style.opacity=.2"></div>`).join('');
-      html+=`<div class="img-group">${slots}</div>`;
-    }
-  });
-  document.getElementById('mac-win-body').innerHTML=html;
+  // Description
+  if (desc.trim()) {
+    html += desc.split(/\n\s*\n/)
+      .map(p=>p.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*([^*]+?)\*/g,'<em>$1</em>').replace(/\n/g,'<br>'))
+      .filter(p=>p.trim())
+      .map(p=>`<p>${p}</p>`).join('');
+  }
 
-  const link=document.getElementById('wce-link').value.trim();
-  const ltext=document.getElementById('wce-linktext').value.trim()||'View Project';
-  const linkEl=document.getElementById('mac-win-link');
-  linkEl.style.display=link?'inline-block':'none';
-  linkEl.textContent='↗ '+ltext;
-  linkEl.href=link;
-}
+  // Photo grid
+  if (wceImages.length) {
+    html += `<div class="photo-grid">${wceImages.map(s=>
+      `<div class="pg-item"><img src="${s}" onerror="this.style.opacity=.2"></div>`
+    ).join('')}</div>`;
+  }
 
-function parseDesc(raw) {
-  return (raw||'')
-    .split(/\n\s*\n/)
-    .map(para=>para
-      .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank">$1</a>')
-      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-      .replace(/\*([^*]+?)\*/g,'<em>$1</em>')
-      .replace(/\n/g,'<br>')
-    )
-    .map(p=>`<p>${p}</p>`)
-    .join('');
+  document.getElementById('mac-win-body').innerHTML = html;
+
+  const linkEl = document.getElementById('mac-win-link');
+  linkEl.style.display = link ? 'inline-block' : 'none';
+  linkEl.textContent = '↗ '+ltext;
+  linkEl.href = link;
 }
 
 document.getElementById('wce-title').addEventListener('input', updatePreview);
+document.getElementById('wce-desc').addEventListener('input', updatePreview);
 document.getElementById('wce-link').addEventListener('input', updatePreview);
 document.getElementById('wce-linktext').addEventListener('input', updatePreview);
 
-function addBlock(type) {
-  if (type==='text')   wceBlocks.push({type:'text', content:''});
-  if (type==='image')  wceBlocks.push({type:'image', src:'', layout:'full'});
-  if (type==='imgrow') wceBlocks.push({type:'imgrow', images:['','']});
-  activeBlock=wceBlocks.length-1;
-  renderWCE();
-  setTimeout(()=>{ document.getElementById('wce-left').scrollTop=99999; },50);
-}
-document.getElementById('wce-add-text').addEventListener('click',()=>addBlock('text'));
-document.getElementById('wce-add-img').addEventListener('click', ()=>addBlock('image'));
-document.getElementById('wce-add-row').addEventListener('click', ()=>addBlock('imgrow'));
+document.getElementById('wce-add-img').addEventListener('click', ()=>{
+  openFB(src=>{ wceImages.push(src); renderImageList(); updatePreview(); });
+});
 
 document.getElementById('wce-save').addEventListener('click',()=>{
   const p=gsel(); if(!p) return;
-  p.title    = document.getElementById('wce-title').value.trim();
-  p.link     = document.getElementById('wce-link').value.trim();
-  p.linkText = document.getElementById('wce-linktext').value.trim()||'View Project';
-  const f=blocksToFields(wceBlocks);
-  p.description=f.description; p.images=f.images;
+  p.title       = document.getElementById('wce-title').value.trim();
+  p.description = document.getElementById('wce-desc').value.trim();
+  p.link        = document.getElementById('wce-link').value.trim();
+  p.linkText    = document.getElementById('wce-linktext').value.trim()||'View Project';
+  p.images      = wceImages.slice(); // plain filenames, no layout suffix needed
   renderItemList();
   const msg=document.getElementById('wce-msg');
   msg.textContent='✓ Saved'; msg.style.color='var(--green)';
