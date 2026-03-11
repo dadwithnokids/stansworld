@@ -521,14 +521,10 @@ document.querySelectorAll('.hotspot').forEach(hotspot => {
     hotspot.classList.add('hovered');
     // Single burst — fire once on enter
     spawnBurstAt(hotspot);
-    // Wiggle the TV gif when hovering the WCJ hotspot
+    // Wiggle tv gif on WCJ hover
     if (project.id === 'wcj-project') {
       const gif = document.getElementById('tv-gif');
-      if (gif) {
-        gif.classList.remove('wiggling');
-        void gif.offsetWidth;
-        gif.classList.add('wiggling');
-      }
+      if (gif) { gif.classList.remove('wiggling'); void gif.offsetWidth; gif.classList.add('wiggling'); }
     }
   });
 
@@ -879,7 +875,7 @@ const PROJECTS = [
     "id": "wcj-project",
     "label": "Weather Channel Jazz",
     "left": "64.5%",
-    "top": "63.5%",
+    "top": "65.5%",
     "width": "9.5%",
     "imageSrc": "tv-hotspot.png",
     "title": "Weather Channel Jazz",
@@ -900,7 +896,7 @@ const PROJECTS = [
     "linkText": "Check out the promo!",
     "transform": {},
     "noWindow": false,
-    "height": "11%"
+    "height": "14%"
   }
 ];
 
@@ -913,6 +909,7 @@ function buildProjectFromConfig(project) {
   hotspot.style.left = project.left;
   hotspot.style.top = project.top;
   hotspot.style.width = project.width || '10%';
+  if (project.height) hotspot.style.height = project.height;
 
   // Apply stored transform (rotation, skew, perspective, brightness)
   const xf = project.transform || {};
@@ -1017,7 +1014,7 @@ function buildProjectFromConfig(project) {
       ${imgHTML}
     </div>
     <div class="mac-footer">
-      <span style="font-size:10px;color:#666;">Stanley's Desk © 2024</span>
+      <span style="font-size:10px;color:#666;">Stan's World © 2026</span>
       ${project.link ? `<a class="mac-link" href="${project.link}" target="_blank" rel="noopener">↗ ${project.linkText || 'View Project'}</a>` : ''}
     </div>
   `;
