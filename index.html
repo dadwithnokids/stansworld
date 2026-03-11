@@ -653,7 +653,7 @@ document.querySelectorAll('.hotspot').forEach(hotspot => {
     hotspot.classList.add('hovered');
     // Single burst — fire once on enter
     spawnBurstAt(hotspot);
-    if (project.id === 'wcj-project') {
+    if (hotspot.dataset.project === 'wcj-project') {
       const gif = document.getElementById('tv-gif');
       if (gif) { gif.classList.remove('wiggling'); void gif.offsetWidth; gif.classList.add('wiggling'); }
     }
@@ -1350,5 +1350,34 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') { lbIndex = (lbIndex+1)%lbImages.length; showLbPhoto(); }
 });
 </script>
+
+<!-- AIM Lightbox -->
+<div id="lb-overlay">
+  <div id="lb-window">
+    <div id="lb-titlebar">
+      <span>&#128247; Instant Image - StansWorld</span>
+      <button id="lb-close">&#x2715;</button>
+    </div>
+    <div id="lb-menubar">
+      <span>File</span><span>Edit</span><span>People</span><span>Help</span>
+    </div>
+    <div id="lb-buddy">
+      <div id="lb-buddy-icon">&#9728;</div>
+      <div>
+        <div id="lb-buddy-name">StanTheMan83</div>
+        <div id="lb-buddy-away">check out my work</div>
+      </div>
+    </div>
+    <div id="lb-photo-area">
+      <button id="lb-nav-left">&#8249;</button>
+      <img id="lb-photo" src="" alt="">
+      <button id="lb-nav-right">&#8250;</button>
+    </div>
+    <div id="lb-statusbar">
+      <span id="lb-counter">1 / 1</span>
+      <span id="lb-hint">&#8592; &#8594; to navigate &middot; ESC to close</span>
+    </div>
+  </div>
+</div>
 </body>
 </html>
