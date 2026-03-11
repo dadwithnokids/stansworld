@@ -197,8 +197,18 @@ body { background:var(--bg); color:var(--text); font-family:'Courier New',monosp
   transition:opacity .1s;
 }
 #mac-win-body .photo-grid .pg-item:hover img { opacity:.8; }
-#mac-win-footer { border-top:1px solid #bbb; padding:8px 16px; display:flex; justify-content:flex-end; background:#d4d0c8; }
-#mac-win-footer a { background:#333; color:#eee; font-size:10px; padding:4px 12px; text-decoration:none; letter-spacing:1px; font-family:'Courier New',monospace; }
+#mac-win-footer { border-top:2px solid #bbb; padding:8px 12px; min-height:42px; display:flex; justify-content:space-between; align-items:center; background:#d4d0c8; }
+#mac-win-footer .footer-label { font-size:10px; color:#666; }
+#mac-win-footer a {
+  color:#111; text-decoration:none; font-size:12px; font-weight:bold; letter-spacing:.5px;
+  padding:5px 14px;
+  background:#d4d0c8;
+  border-top:2px solid #fff; border-left:2px solid #fff;
+  border-right:2px solid #404040; border-bottom:2px solid #404040;
+  box-shadow:inset 1px 1px 0 #e8e4dc, 1px 1px 0 rgba(0,0,0,.3);
+  font-family:'Courier New',monospace;
+}
+#mac-win-footer a:hover { background:#111; color:#fff; }
 
 /* Block list */
 .block-row { display:flex; align-items:center; gap:5px; padding:5px 7px; border:1px solid var(--border); cursor:pointer; }
@@ -468,6 +478,7 @@ body { background:var(--bg); color:var(--text); font-family:'Courier New',monosp
             </div>
             <div id="mac-win-body"></div>
             <div id="mac-win-footer">
+              <span class="footer-label">Stan's World © 2026</span>
               <a id="mac-win-link" href="#" style="display:none;">↗ View Project</a>
             </div>
           </div>
@@ -494,7 +505,7 @@ body { background:var(--bg); color:var(--text); font-family:'Courier New',monosp
         </div>
         <div class="sec" style="margin-top:8px;">Background &amp; Title</div>
         <div class="field"><label>Background Image</label><input id="s-bg" value="Desk_Image.png"></div>
-        <div class="field"><label>Page Title</label><input id="s-title" value="Stanley's Desk"></div>
+        <div class="field"><label>Page Title</label><input id="s-title" value="Stan's World"></div>
       </div>
     </div>
 
