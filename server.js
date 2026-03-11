@@ -13,6 +13,202 @@ const fs   = require('fs');
 const path = require('path');
 const url  = require('url');
 
+// ══════════════════════════════════════════════════════
+// applyFixes — called after every save to ensure all
+// permanent features are always present in index.html
+// ══════════════════════════════════════════════════════
+function applyFixes(html) {
+
+  // ── 1. imgHTML → photo grid ──
+  const imgStart = html.indexOf('const images = project.images');
+  const imgEnd   = html.indexOf('if (imgHTML) imgHTML +=');
+  if (imgStart !== -1 && imgEnd !== -1) {
+    const lineEnd = imgEnd + html.slice(imgEnd).indexOf('\n') + 1;
+    html = html.slice(0, imgStart) +
+`const images = project.images || [];
+  let imgHTML = '';
+  if (images.length > 0) {
+    const srcs = images.map(raw => raw.split('|')[0]);
+    const items = srcs.map((s, i) => \`<div class="pg-item" data-src="\${s}"><img src="\${s}" alt=""></div>\`).join('');
+    imgHTML = \`<div class="photo-grid">\${items}</div>\`;
+  }` +
+    html.slice(lineEnd);
+  }
+
+  // ── 2. Scope mac-window cursor rule to titlebar only ──
+  html = html.replace(
+    '.mac-window, .mac-window * {\n    cursor: none !important;\n  }',
+    '.mac-window .mac-titlebar, .mac-window .mac-titlebar * { cursor: none !important; }'
+  );
+
+  // ── 3. Strip old AIM CSS ──
+  const aimCSSMarker = html.indexOf('/* AIM Lightbox */');
+  if (aimCSSMarker !== -1) {
+    const styleEnd = html.indexOf('</style>', aimCSSMarker);
+    html = html.slice(0, aimCSSMarker) + html.slice(styleEnd);
+  }
+
+  // ── 4. Strip old AIM HTML ──
+  const OLD_AIM_HTML = '<!-- AIM Lightbox -->\n<div id="lb-overlay">\n  <div id="lb-window">\n    <div id="lb-titlebar">\n      <span>&#128247; Instant Image - StansWorld</span>\n      <button id="lb-close">&#x2715;</button>\n    </div>\n    <div id="lb-menubar">\n      <span>File</span><span>Edit</span><span>People</span><span>Help</span>\n    </div>\n    <div id="lb-buddy">\n      <div id="lb-buddy-icon">&#9728;</div>\n      <div>\n        <div id="lb-buddy-name">StanTheMan83</div>\n        <div id="lb-buddy-away">check out my work</div>\n      </div>\n    </div>\n    <div id="lb-photo-area">\n      <button id="lb-nav-left">&#8249;</button>\n      <img id="lb-photo" src="" alt="">\n      <button id="lb-nav-right">&#8250;</button>\n    </div>\n    <div id="lb-statusbar">\n      <span id="lb-counter">1 / 1</span>\n      <span id="lb-hint">&#8592; &#8594; to navigate &middot; ESC to close</span>\n    </div>\n  </div>\n</div>';
+  html = html.replace(OLD_AIM_HTML, '');
+
+  // ── 5. Strip old AIM JS ──
+  for (const pat of ['let lbImages', 'var lbImages']) {
+    const i = html.indexOf(pat);
+    if (i !== -1) {
+      const s = html.lastIndexOf('<script>', i);
+      const e = html.indexOf('</script>', i) + 9;
+      html = html.slice(0, s) + html.slice(e);
+      break;
+    }
+  }
+
+  // ── 6. Strip old wiggle scripts ──
+  for (const pat of ["document.addEventListener('mouseover'", 'dataset.project !==']) {
+    const i = html.indexOf(pat);
+    if (i !== -1) {
+      const s = html.lastIndexOf('<script>', i);
+      const e = html.indexOf('</script>', i) + 9;
+      html = html.slice(0, s) + html.slice(e);
+    }
+  }
+
+  // ── 7. Inject AIM CSS (only if not already present) ──
+  if (!html.includes('/* AIM XP */')) {
+    const AIM_CSS = `
+  /* AIM XP */
+  .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin:10px 0 0 0;}
+  .photo-grid .pg-item{aspect-ratio:1/1;overflow:hidden;cursor:none !important;border:1px solid var(--mac-dark);background:#111;}
+  .photo-grid .pg-item img{width:100%;height:100%;object-fit:cover;}
+  #lb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;}
+  #lb-overlay.open{display:flex;}
+  #lb-overlay *{cursor:none !important;}
+  #lb-window{width:660px;background:#d4d0c8;border:2px solid #000;box-shadow:4px 4px 14px rgba(0,0,0,0.7);font-family:'Tahoma',Arial,sans-serif;font-size:11px;}
+  #lb-titlebar{background:linear-gradient(to bottom,#0a246a,#3a6ea5 50%,#0a246a);padding:3px 5px;display:flex;align-items:center;justify-content:space-between;height:26px;}
+  #lb-titlebar-left{display:flex;align-items:center;gap:5px;color:#fff;font-weight:bold;font-size:12px;text-shadow:1px 1px 2px rgba(0,0,0,0.5);white-space:nowrap;}
+  #lb-titlebar-btns{display:flex;gap:2px;flex-shrink:0;}
+  .lb-tbtn{width:21px;height:19px;background:linear-gradient(to bottom,#e8e8e8,#c8c8c8);border:1px solid #4a4a4a;border-top-color:#fff;border-left-color:#fff;font-size:11px;color:#000;display:flex;align-items:center;justify-content:center;font-weight:bold;}
+  #lb-x{background:linear-gradient(to bottom,#e06060,#b02020);color:#fff;border-color:#800000;}
+  #lb-x:hover{background:linear-gradient(to bottom,#ff8080,#cc2020);}
+  #lb-menubar{background:#d4d0c8;border-bottom:1px solid #a0a0a0;padding:1px 4px;display:flex;align-items:center;justify-content:space-between;}
+  #lb-menu-l{display:flex;}
+  #lb-menu-l span{padding:2px 7px;}
+  #lb-menu-l span:hover{background:#0a246a;color:#fff;}
+  #lb-warnlevel{font-size:10px;color:#555;padding-right:6px;}
+  #lb-buddy{background:#fff;border:1px solid #b0b0b0;margin:4px;padding:5px 7px;display:flex;align-items:center;gap:8px;}
+  #lb-buddy-icon{width:32px;height:32px;flex-shrink:0;background:#ffdd00;border:1px solid #c0a000;display:flex;align-items:center;justify-content:center;font-size:20px;}
+  #lb-buddy-name{font-weight:bold;color:#00008b;font-size:12px;}
+  #lb-photo-wrap{background:#111;border:2px solid #808080;border-top-color:#404040;border-left-color:#404040;margin:0 4px 4px 4px;height:400px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  #lb-photo{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;}
+  .lb-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(212,208,200,0.9);border:1px solid #808080;border-top-color:#fff;border-left-color:#fff;width:28px;height:44px;font-size:20px;display:flex;align-items:center;justify-content:center;color:#000;z-index:2;font-weight:bold;}
+  .lb-nav:hover{background:#b8b4ac;}
+  #lb-nav-l{left:4px;}#lb-nav-r{right:4px;}
+  #lb-toolbar{background:#d4d0c8;border-top:1px solid #a0a0a0;padding:4px 6px;display:flex;align-items:center;justify-content:space-between;}
+  #lb-tools{display:flex;align-items:center;gap:1px;}
+  .lb-tool{display:flex;flex-direction:column;align-items:center;background:none;border:1px solid transparent;padding:2px 5px;color:#000;font-size:9px;font-family:'Tahoma',Arial,sans-serif;min-width:40px;}
+  .lb-tool:hover{background:#c0bdb5;border-color:#808080;}
+  .lb-tool-icon{font-size:19px;line-height:1;margin-bottom:1px;}
+  #lb-counter{font-size:10px;color:#555;margin-left:8px;align-self:center;}
+  #lb-send{display:flex;flex-direction:column;align-items:center;background:#d4d0c8;border:2px solid #fff;border-right-color:#404040;border-bottom-color:#404040;padding:4px 14px;font-family:'Tahoma',Arial,sans-serif;}
+  #lb-send-icon{font-size:22px;line-height:1;}
+  #lb-send-label{font-size:10px;font-weight:bold;color:#000;margin-top:1px;white-space:nowrap;}
+  #lb-send-bar{width:42px;height:4px;background:linear-gradient(to right,#cc0000,#ff5555);margin-top:2px;}`;
+    html = html.replace('</style>', AIM_CSS + '\n</style>');
+  }
+
+  // ── 8. Inject AIM HTML (only if not already present) ──
+  if (!html.includes('<!-- AIM -->')) {
+    const AIM_HTML = `<!-- AIM -->
+<div id="lb-overlay">
+  <div id="lb-window">
+    <div id="lb-titlebar">
+      <div id="lb-titlebar-left">&#128172; Glens Instint Mesanger</div>
+      <div id="lb-titlebar-btns">
+        <button class="lb-tbtn">&#8211;</button>
+        <button class="lb-tbtn">&#9633;</button>
+        <button class="lb-tbtn" id="lb-x">&#x2715;</button>
+      </div>
+    </div>
+    <div id="lb-menubar">
+      <div id="lb-menu-l"><span>File</span><span>Edit</span><span>Insert</span><span>People</span></div>
+      <span id="lb-warnlevel">Dadwithnokids's Warning Level: 0%</span>
+    </div>
+    <div id="lb-buddy">
+      <div id="lb-buddy-icon">&#9728;</div>
+      <div><div id="lb-buddy-name">Dadwithnokids</div></div>
+    </div>
+    <div id="lb-photo-wrap">
+      <button class="lb-nav" id="lb-nav-l">&#8249;</button>
+      <img id="lb-photo" src="" alt="">
+      <button class="lb-nav" id="lb-nav-r">&#8250;</button>
+    </div>
+    <div id="lb-toolbar">
+      <div id="lb-tools">
+        <button class="lb-tool"><span class="lb-tool-icon">&#9889;</span>Warn</button>
+        <button class="lb-tool"><span class="lb-tool-icon">&#128683;</span>Block</button>
+        <button class="lb-tool"><span class="lb-tool-icon">&#127775;</span>Expressions</button>
+        <button class="lb-tool"><span class="lb-tool-icon">&#127922;</span>Games</button>
+        <button class="lb-tool"><span class="lb-tool-icon">&#128483;</span>Talk</button>
+        <span id="lb-counter"></span>
+      </div>
+      <div id="lb-send">
+        <span id="lb-send-icon">&#9992;&#65039;</span>
+        <span id="lb-send-label">Send Message</span>
+        <div id="lb-send-bar"></div>
+      </div>
+    </div>
+  </div>
+</div>`;
+    html = html.replace('</body>', AIM_HTML + '\n</body>');
+  }
+
+  // ── 9. Inject AIM JS (only if not already present) ──
+  if (!html.includes('function lbClose')) {
+    const AIM_JS = `<script>
+(function(){
+  var imgs=[],idx=0;
+  function show(){document.getElementById('lb-photo').src=imgs[idx];document.getElementById('lb-counter').textContent=(idx+1)+' / '+imgs.length;}
+  function lbClose(){document.getElementById('lb-overlay').classList.remove('open');}
+  document.addEventListener('click',function(e){
+    var item=e.target.closest&&e.target.closest('.pg-item');
+    if(!item)return;
+    var all=Array.from(item.closest('.photo-grid').querySelectorAll('.pg-item'));
+    imgs=all.map(function(el){return el.dataset.src;});idx=all.indexOf(item);
+    show();document.getElementById('lb-overlay').classList.add('open');
+  });
+  window.addEventListener('DOMContentLoaded',function(){
+    document.getElementById('lb-x').addEventListener('click',lbClose);
+    document.getElementById('lb-overlay').addEventListener('click',function(e){if(e.target===this)lbClose();});
+    document.getElementById('lb-window').addEventListener('click',function(e){e.stopPropagation();});
+    document.getElementById('lb-nav-l').addEventListener('click',function(){idx=(idx-1+imgs.length)%imgs.length;show();});
+    document.getElementById('lb-nav-r').addEventListener('click',function(){idx=(idx+1)%imgs.length;show();});
+  });
+  document.addEventListener('keydown',function(e){
+    if(!document.getElementById('lb-overlay').classList.contains('open'))return;
+    if(e.key==='Escape')lbClose();
+    if(e.key==='ArrowLeft'){idx=(idx-1+imgs.length)%imgs.length;show();}
+    if(e.key==='ArrowRight'){idx=(idx+1)%imgs.length;show();}
+  });
+})();
+</script>`;
+    html = html.replace('</body>', AIM_JS + '\n</body>');
+  }
+
+  // ── 10. Inject wiggle JS (always re-inject — delegated, safe to repeat) ──
+  const WIGGLE_JS = `<script>
+document.addEventListener('mouseover',function(e){
+  var hs=e.target.closest&&e.target.closest('.hotspot');
+  if(!hs||hs.dataset.project!=='wcj-project')return;
+  var gif=document.getElementById('tv-gif');
+  if(!gif)return;
+  gif.classList.remove('wiggling');void gif.offsetWidth;gif.classList.add('wiggling');
+});
+</script>`;
+  html = html.replace('</body>', WIGGLE_JS + '\n</body>');
+
+  return html;
+}
+
 const PORT    = 3000;
 const FOLDER  = __dirname; // same folder as this script
 
@@ -112,8 +308,10 @@ const server = http.createServer((req, res) => {
           );
         }
 
+        replaced = applyFixes(replaced);
+
         fs.writeFileSync(indexPath, replaced, 'utf8');
-        console.log(`[${new Date().toLocaleTimeString()}] Saved ${projects.length} project(s) to index.html`);
+        console.log(`[${new Date().toLocaleTimeString()}] Saved ${projects.length} project(s) to index.html (fixes applied)`);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, count: projects.length }));
