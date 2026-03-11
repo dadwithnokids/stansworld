@@ -195,6 +195,28 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── API: GET /ping ──
+  if (req.method === 'GET' && pathname === '/ping') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
+  // ── API: GET /list-files — returns image files in project folder ──
+  if (req.method === 'GET' && pathname === '/list-files') {
+    try {
+      const allFiles = fs.readdirSync(FOLDER);
+      const imgExts = /\.(png|jpg|jpeg|gif|webp|svg)$/i;
+      const files = allFiles.filter(f => imgExts.test(f));
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ files }));
+    } catch(err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ files: [], error: err.message }));
+    }
+    return;
+  }
+
   // ── SERVE STATIC FILES ──
   let filePath = pathname === '/' ? '/index.html' : pathname;
   filePath = path.join(FOLDER, filePath);
