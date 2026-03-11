@@ -259,23 +259,19 @@
     border: 1px solid var(--mac-dark);
     max-width: 100%;
   }
-  /* ── Image grid layouts ── */
-  /* full width */
-  .mac-content .img-block { margin: 6px 0; }
-  .mac-content .img-block img { width: 100%; display: block; }
-  /* Column groups — images side by side, tight gap */
-  .mac-content .img-group { display: flex; gap: 3px; margin: 6px 0; }
-  .mac-content .img-group .img-slot { flex: 1; min-width: 0; }
-  .mac-content .img-group .img-slot img { width: 100%; display: block; object-fit: cover; }
-  /* Wide+narrow: first slot 2x width */
-  .mac-content .img-group.wide-narrow .img-slot:first-child { flex: 2; }
-  /* Legacy compat — old layout classes still work */
+  /* layout: full (default) */
   .mac-content img.img-full   { width: 100%; }
+  /* layout: half */
   .mac-content img.img-half   { width: 50%; }
+  /* layout: third */
   .mac-content img.img-third  { width: 33%; }
+  /* layout: right — floats image to right, text wraps left */
   .mac-content img.img-right  { float: right; width: 45%; margin: 0 0 8px 10px; }
+  /* layout: left — floats image to left, text wraps right */
   .mac-content img.img-left   { float: left;  width: 45%; margin: 0 10px 8px 0; }
+  /* clearfix after floated images */
   .mac-content .img-clear     { clear: both; }
+  /* side-by-side row */
   .mac-content .img-row       { display: flex; gap: 6px; margin: 8px 0; }
   .mac-content .img-row img   { flex: 1; width: 0; margin: 0; }
   /* inline link inside description */
@@ -849,9 +845,9 @@ const PROJECTS = [
   {
     "id": "wcjtv",
     "label": "TV Screen",
-    "left": 66.9,
-    "top": 67.1,
-    "width": 7,
+    "left": "66.9%",
+    "top": "67.1%",
+    "width": "7%",
     "imageSrc": "tv-screen.gif",
     "title": "",
     "description": "",
@@ -864,23 +860,23 @@ const PROJECTS = [
   {
     "id": "wcj-project",
     "label": "Weather Channel Jazz",
-    "left": 65.5,
-    "top": 66,
-    "width": 9,
+    "left": "65.5%",
+    "top": "66%",
+    "width": "9%",
     "imageSrc": "",
     "title": "Weather Channel Jazz",
-    "description": "My good friend Scott was part of a jazz band that played at a local bar here in Louisville called The Whirling Tiger every Wednesday night. Aly and I don't go out much, but we tried to make it up every week to see them. One night I had an idea while we were up there and  approached them asking if they would let me produce a night. They were maybe a bit confused at first, but they said \"alright, we'll allow it!\"\n\nMost of my ideas come from creating modern experiences inside nostalgic worlds. I love taking things from the past, forgotten or flat out ignored, and bringing new life into them. The most enjoyable creative vehicle for me is immersion. It's not just for the thrill of it, it's one of the only ways I've ever felt truly satisfied with a project on my mind. I struggle pitching ideas, finding the words to say what I want, how I want something to land.  All my life I've found myself abandoning ideas and sometimes falling into depression over feeling misunderstood when I simply can’t find the words…It’s like I’m trying to speak a language that I don’t understand. The only way out I've found is to just make the thing in a closed room and show people afterwards.\n\n**The Idea:** \n\nThere's a small, niche group of people online who find the old Weather Channel from the 80s and 90s to be almost meditative. You can find hours of [old VHS recordings on YouTube](https://www.youtube.com/watch?v=pbw85r5pa_Q&t=8129s), grainy and squiggly, with a comforting professional voice giving updates, old commercials, and incredibly smooth jazz playing over everything. I wanted to create an evening at this bar that made everyone feel that warm, hard-to-put-your-finger-on sensation those videos give you. Part of it is nostalgia, but then why do younger Gen Z kids love this stuff?? How can they be nostalgic for something they've never seen?\n\nI started drawing a map on a napkin. The space was a long wide rectangle, and I knew where the band positioned themselves, so I built everything around that. Two mid-size black 90s CRT TVs, one on each side of the band. Tall warm living room lamps with some fake palms draining over them. The bar's sound system sat right above the band, perfect for plugging in gentle rain and light thunder underneath the music.\n\nThere was a half wall leading to another open room where I planned to set up what I called the Weatherman 5000. A green screen with a VHS camcorder shooting at it, sending signal into an Edirol V4 video mixer to key out the background and display it on more CRTs, making whoever stood in front of it look like the local meteorologist giving the forecast for the night.\n\nThe TVs and sound system were the backbone of the whole evening. I made an introduction video where an announcer welcomes everyone to Weather Channel Jazz night and introduces the band. The announcer is the real voice from the Weather Channel, deepfaked using clips I pulled from old recordings. He was there to drive the immersion. I treated him like the narrator on one of those old Universal Studios rides. \n\nAfter the intro, an hour of old Weather Channel footage played on the TVs while the band performed. Then the announcer broke in with that startling weather alert alarm declaring an \"Intermission Warning\" and told everyone to head to shelter at the bar. For 20 minutes, old commercials played while he checked back in letting people know how much time was left. Then the show continued for another hour.\n\nI also made drink menus based on storm puns and local Louisville meteorologist names. My dream is still to get Marc Weinberg to show up and use the Weatherman 5000.\n\nWe launched the first Weather Channel Jazz night in spring of 2025. I took the day off work to triple check everything and give myself enough setup time, including the inevitable \"why isn't ____ working\" window.\n\nThe event got shared quite a bit locally in the days leading up, but I didn't know what to expect. As the show began I had everything queued up perfectly, people were showing up and I couldn’t believe my eyes…it started pouring rain outside. It was too good to be true. About 75 to 100 people showed up, and they showed up enthusiastically!! Some were wearing Weather Channel shirts and jackets, lots of raincoats. Seeing people pretending to be meteorologists on the TVs while being serenaded by the smoothest jazz they'd ever heard was everything. Easily one of my top three projects I’ve ever worked on. I'd do this every day if I could!\n\nCheck out the links below to learn more about Weather Channel Jazz and when the next one might pop up!",
+    "description": "My good friend Scott was part of a jazz band that played at a local bar here in Louisville called The Whirling Tiger every Wednesday night. Aly and I don't go out much, but we tried to make it up every week to see them. One night I had an idea while we were up there and  approached them asking if they would let me produce a night. They were maybe a bit confused at first, but they said \"alright, we'll allow it!\"\n\nMost of my ideas come from creating modern experiences inside nostalgic worlds. I love taking things from the past, forgotten or flat out ignored, and bringing new life into them. The most enjoyable creative vehicle for me is immersion. It's not just for the thrill of it, it's one of the only ways I've ever felt truly satisfied with a project on my mind. I struggle pitching ideas, finding the words to say what I want, how I want something to land.  All my life I've found myself abandoning ideas and sometimes falling into depression over feeling misunderstood when I simply can\u2019t find the words\u2026It\u2019s like I\u2019m trying to speak a language that I don\u2019t understand. The only way out I've found is to just make the thing in a closed room and show people afterwards.\n\n**The Idea:** \n\nThere's a small, niche group of people online who find the old Weather Channel from the 80s and 90s to be almost meditative. You can find hours of [old VHS recordings on YouTube](https://www.youtube.com/watch?v=pbw85r5pa_Q&t=8129s), grainy and squiggly, with a comforting professional voice giving updates, old commercials, and incredibly smooth jazz playing over everything. I wanted to create an evening at this bar that made everyone feel that warm, hard-to-put-your-finger-on sensation those videos give you. Part of it is nostalgia, but then why do younger Gen Z kids love this stuff?? How can they be nostalgic for something they've never seen?\n\nI started drawing a map on a napkin. The space was a long wide rectangle, and I knew where the band positioned themselves, so I built everything around that. Two mid-size black 90s CRT TVs, one on each side of the band. Tall warm living room lamps with some fake palms draining over them. The bar's sound system sat right above the band, perfect for plugging in gentle rain and light thunder underneath the music.\n\nThere was a half wall leading to another open room where I planned to set up what I called the Weatherman 5000. A green screen with a VHS camcorder shooting at it, sending signal into an Edirol V4 video mixer to key out the background and display it on more CRTs, making whoever stood in front of it look like the local meteorologist giving the forecast for the night.\n\nThe TVs and sound system were the backbone of the whole evening. I made an introduction video where an announcer welcomes everyone to Weather Channel Jazz night and introduces the band. The announcer is the real voice from the Weather Channel, deepfaked using clips I pulled from old recordings. He was there to drive the immersion. I treated him like the narrator on one of those old Universal Studios rides. \n\nAfter the intro, an hour of old Weather Channel footage played on the TVs while the band performed. Then the announcer broke in with that startling weather alert alarm declaring an \"Intermission Warning\" and told everyone to head to shelter at the bar. For 20 minutes, old commercials played while he checked back in letting people know how much time was left. Then the show continued for another hour.\n\nI also made drink menus based on storm puns and local Louisville meteorologist names. My dream is still to get Marc Weinberg to show up and use the Weatherman 5000.\n\nWe launched the first Weather Channel Jazz night in spring of 2025. I took the day off work to triple check everything and give myself enough setup time, including the inevitable \"why isn't ____ working\" window.\n\nThe event got shared quite a bit locally in the days leading up, but I didn't know what to expect. As the show began I had everything queued up perfectly, people were showing up and I couldn\u2019t believe my eyes\u2026it started pouring rain outside. It was too good to be true. About 75 to 100 people showed up, and they showed up enthusiastically!! Some were wearing Weather Channel shirts and jackets, lots of raincoats. Seeing people pretending to be meteorologists on the TVs while being serenaded by the smoothest jazz they'd ever heard was everything. Easily one of my top three projects I\u2019ve ever worked on. I'd do this every day if I could!\n\nCheck out the links below to learn more about Weather Channel Jazz and when the next one might pop up!",
     "images": [
       "WCJ_1_TV.jpg",
-      "WCJ_2.jpg|2col",
-      "WCJ_3_Logo.png|2col",
-      "WCJ_4.png|2col",
-      "WCJ_5.png|2col",
-      "WCJ_6.png|2col",
-      "WCJ_7.png|2col",
-      "WCJ_8.png|2col",
-      "WCJ_9.png|2col",
-      "WCJ_10.png|2col"
+      "WCJ_2.jpg|third",
+      "WCJ_3_Logo.png|left",
+      "WCJ_4.png|right",
+      "WCJ_5.png|half",
+      "WCJ_6.png|left",
+      "WCJ_7.png|right",
+      "WCJ_8.png|row",
+      "WCJ_9.png|row",
+      "WCJ_10.png|row"
     ],
     "link": "https://www.instagram.com/reel/DGhRnkTs6jO/?utm_source=ig_web_copy_link&igsh=MzRlODBiNWFlZA==",
     "linkText": "Check out the promo!",
@@ -937,57 +933,54 @@ function buildProjectFromConfig(project) {
   // "photo.jpg|left"         → float left, text wraps
   // "photo.jpg|row:photo2.jpg|row:photo3.jpg" → side-by-side row
 
-  // ── Parse description + images into interleaved blocks ──
+  const images = project.images || [];
+  let imgHTML = '';
+  let i = 0;
+  while (i < images.length) {
+    const raw = images[i];
+    const [src, layout = 'full'] = raw.split('|');
+
+    if (layout.startsWith('row')) {
+      // Collect all consecutive row items
+      const rowImgs = [src];
+      while (i + 1 < images.length && images[i+1].split('|')[1] === 'row') {
+        i++;
+        rowImgs.push(images[i].split('|')[0]);
+      }
+      imgHTML += `<div class="img-row">${rowImgs.map(s =>
+        `<img src="${s}" alt="${project.title}">`).join('')}</div>`;
+    } else if (layout === 'right' || layout === 'left') {
+      imgHTML += `<img src="${src}" alt="${project.title}" class="img-${layout}">`;
+    } else if (layout === 'half' || layout === 'third') {
+      imgHTML += `<img src="${src}" alt="${project.title}" class="img-${layout}">`;
+    } else {
+      imgHTML += `<img src="${src}" alt="${project.title}" class="img-full">`;
+    }
+    i++;
+  }
+  // Clear floats after images
+  if (imgHTML) imgHTML += '<div class="img-clear"></div>';
+
+  // Parse description — supports:
+  //   [link text](url)   → hyperlink
+  //   **bold**           → bold
+  //   *italic*           → italic
+  //   blank line         → new paragraph
   function parseDesc(raw) {
-    // Strip legacy "Add a description..." prefix if present
-    const cleaned = (raw||'').replace(/^Add a description\.\.\./, '').trim();
-    return cleaned.split(/\n\s*\n/)
+    return (raw || '')
+      .split(/\n\s*\n/)               // split on blank lines → paragraphs
       .map(para => para
         .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
           '<a class="desc-link" href="$2" target="_blank" rel="noopener">$1</a>')
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*([^*]+?)\*/g, '<em>$1</em>')
+        .replace(/\*([^*]+?)\*/g,    '<em>$1</em>')
         .replace(/\n/g, '<br>')
       )
-      .filter(p => p.trim())
       .map(para => `<p>${para}</p>`)
       .join('');
   }
 
-  function renderImages(images) {
-    let html = '';
-    let i = 0;
-    while (i < images.length) {
-      const parts = images[i].split('|');
-      const src = parts[0];
-      const layout = parts[1] || 'full';
-      if (layout === '2col' || layout === '3col' || layout === 'wide') {
-        const slots = [`<div class="img-slot"><img src="${src}" alt="${project.title}"></div>`];
-        while (i + 1 < images.length) {
-          const np = images[i+1].split('|');
-          if ((np[1]||'full') === layout) { i++; slots.push(`<div class="img-slot"><img src="${np[0]}" alt="${project.title}"></div>`); }
-          else break;
-        }
-        html += `<div class="img-group${layout==='wide'?' wide-narrow':''}">${slots.join('')}</div>`;
-      } else if (layout === 'row') {
-        const rowImgs = [src];
-        while (i+1 < images.length && images[i+1].split('|')[1]==='row') { i++; rowImgs.push(images[i].split('|')[0]); }
-        html += `<div class="img-group">${rowImgs.map(s=>`<div class="img-slot"><img src="${s}" alt="${project.title}"></div>`).join('')}</div>`;
-      } else if (layout==='left'||layout==='right') {
-        html += `<img src="${src}" alt="${project.title}" class="img-${layout}">`;
-      } else if (layout==='half'||layout==='third') {
-        html += `<img src="${src}" alt="${project.title}" class="img-${layout}">`;
-      } else {
-        html += `<div class="img-block"><img src="${src}" alt="${project.title}"></div>`;
-      }
-      i++;
-    }
-    return html;
-  }
-
-  // Build content: text first, then images (description comes before images)
   const descHTML = parseDesc(project.description);
-  const imgHTML  = renderImages(project.images || []);
 
   win.innerHTML = `
     <div class="mac-titlebar" data-window="${project.id}">
@@ -1000,8 +993,8 @@ function buildProjectFromConfig(project) {
     </div>
     <div class="mac-content">
       <h2>${project.title}</h2>
-      ${descHTML}
       ${imgHTML}
+      ${descHTML}
     </div>
     <div class="mac-footer">
       <span style="font-size:10px;color:#666;">Stanley's Desk © 2024</span>
