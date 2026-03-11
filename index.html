@@ -172,9 +172,7 @@
     transform-origin: center center; /* overridden by JS at open time */
   }
   /* Force cursor:none on everything inside the window — prevents double cursor */
-  .mac-window, .mac-window * {
-    cursor: none !important;
-  }
+  .mac-window .mac-titlebar, .mac-window .mac-titlebar * { cursor: none !important; }
 
   /* Window starts hidden; JS controls visibility during zoom-rect animation */
   .mac-window.active {
@@ -422,7 +420,7 @@
   #lb-x:hover{background:linear-gradient(to bottom,#ff8080,#cc2020);}
   #lb-menubar{background:#d4d0c8;border-bottom:1px solid #a0a0a0;padding:1px 4px;display:flex;align-items:center;justify-content:space-between;}
   #lb-menu-l{display:flex;}
-  #lb-menu-l span{padding:2px 7px;cursor:default;}
+  #lb-menu-l span{padding:2px 7px;cursor:pointer;}
   #lb-menu-l span:hover{background:#0a246a;color:#fff;}
   #lb-warnlevel{font-size:10px;color:#555;padding-right:6px;}
   #lb-buddy{background:#fff;border:1px solid #b0b0b0;margin:4px;padding:5px 7px;display:flex;align-items:center;gap:8px;}
@@ -440,7 +438,7 @@
   .lb-tool:hover{background:#c0bdb5;border-color:#808080;}
   .lb-tool-icon{font-size:19px;line-height:1;margin-bottom:1px;}
   #lb-counter{font-size:10px;color:#555;margin-left:8px;align-self:center;}
-  #lb-send{text-decoration:none;display:flex;flex-direction:column;align-items:center;background:#d4d0c8;border:2px solid #fff;border-right-color:#404040;border-bottom-color:#404040;padding:4px 14px;cursor:pointer;font-family:'Tahoma',Arial,sans-serif;}
+  #lb-send{display:flex;flex-direction:column;align-items:center;text-decoration:none;background:#d4d0c8;border:2px solid #fff;border-right-color:#404040;border-bottom-color:#404040;padding:4px 14px;font-family:'Tahoma',Arial,sans-serif;}
   #lb-send:hover{background:#c0bdb5;}
   #lb-send:active{border-top-color:#404040;border-left-color:#404040;border-right-color:#fff;border-bottom-color:#fff;}
   #lb-send-icon{font-size:22px;line-height:1;}
@@ -1275,29 +1273,25 @@ PROJECTS.forEach(buildProjectFromConfig);
 (function(){
   var imgs=[],idx=0;
   function show(){document.getElementById('lb-photo').src=imgs[idx];document.getElementById('lb-counter').textContent=(idx+1)+' / '+imgs.length;}
-  function close(){
-    document.getElementById('lb-overlay').classList.remove('open');
-    var c=document.getElementById('cursor'); if(c) c.style.display='';
-  }
+  function lbOpen(){document.getElementById('lb-overlay').classList.add('open');}
+  function lbClose(){document.getElementById('lb-overlay').classList.remove('open');}
   document.addEventListener('click',function(e){
     var item=e.target.closest&&e.target.closest('.pg-item');
     if(!item)return;
     var all=Array.from(item.closest('.photo-grid').querySelectorAll('.pg-item'));
     imgs=all.map(function(el){return el.dataset.src;});idx=all.indexOf(item);
-    show();
-    document.getElementById('lb-overlay').classList.add('open');
-    var c=document.getElementById('cursor'); if(c) c.style.display='none';
+    show(); lbOpen();
   });
   window.addEventListener('DOMContentLoaded',function(){
-    document.getElementById('lb-x').addEventListener('click',close);
-    document.getElementById('lb-overlay').addEventListener('click',function(e){if(e.target===this)close();});
+    document.getElementById('lb-x').addEventListener('click',lbClose);
+    document.getElementById('lb-overlay').addEventListener('click',function(e){if(e.target===this)lbClose();});
     document.getElementById('lb-window').addEventListener('click',function(e){e.stopPropagation();});
     document.getElementById('lb-nav-l').addEventListener('click',function(){idx=(idx-1+imgs.length)%imgs.length;show();});
     document.getElementById('lb-nav-r').addEventListener('click',function(){idx=(idx+1)%imgs.length;show();});
   });
   document.addEventListener('keydown',function(e){
     if(!document.getElementById('lb-overlay').classList.contains('open'))return;
-    if(e.key==='Escape')close();
+    if(e.key==='Escape')lbClose();
     if(e.key==='ArrowLeft'){idx=(idx-1+imgs.length)%imgs.length;show();}
     if(e.key==='ArrowRight'){idx=(idx+1)%imgs.length;show();}
   });
